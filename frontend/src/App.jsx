@@ -3,12 +3,17 @@ import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
 import CreateWorkspace from "./pages/onboarding/CreateWorkspace";
 import Dashboard from "./pages/dashboard/Dashboard";
+import TasksPage from "./pages/dashboard/TasksPage";
+import InboxPage from "./pages/dashboard/InboxPage";
 import KanbanPage from "./pages/project/KanbanPage";
 import SnippetsPage from "./pages/project/SnippetsPage";
 import WikiPage from "./pages/project/WikiPage";
 import ActivityPage from "./pages/project/ActivityPage";
 import AIPage from "./pages/project/AIPage";
+
 import CalendarPage from "./pages/dashboard/CalendarPage";
+import ProjectsPage from "./pages/project/ProjectsPage";
+import NewProjectPage from "./pages/project/NewProjectPage";
 import WorkspaceSettings from "./pages/settings/WorkspaceSettings";
 import ProfileSettings from "./pages/settings/ProfileSettings";
 import PricingPage from "./pages/upgrade/PricingPage";
@@ -37,7 +42,11 @@ const WorkspaceRoute = ({ children }) => {
 };
 
 const AppRoutes = () => {
+  const { isAuthenticated, loading } = useAuth();
   const guarded = (element) => <ProtectedRoute><WorkspaceRoute>{element}</WorkspaceRoute></ProtectedRoute>;
+  if (loading) {
+    return <div className="min-h-screen surface flex items-center justify-center text-gray-400">Loading DevCollab...</div>;
+  }
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
@@ -46,6 +55,10 @@ const AppRoutes = () => {
       
       {/* Guarded platform dashboard core endpoints */}
       <Route path="/dashboard" element={guarded(<Dashboard />)} />
+      <Route path="/tasks" element={guarded(<TasksPage />)} />
+      <Route path="/inbox" element={guarded(<InboxPage />)} />
+      <Route path="/projects" element={guarded(<ProjectsPage />)} />
+      <Route path="/projects/new" element={guarded(<NewProjectPage />)} />
       <Route path="/project/:id/board" element={guarded(<KanbanPage />)} />
       <Route path="/project/:id/snippets" element={guarded(<SnippetsPage />)} />
       <Route path="/project/:id/wiki" element={guarded(<WikiPage />)} />
@@ -54,6 +67,7 @@ const AppRoutes = () => {
       <Route path="/settings/workspace" element={guarded(<WorkspaceSettings />)} />
       <Route path="/settings/profile" element={guarded(<ProfileSettings />)} />
       <Route path="/upgrade" element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
+
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       
       {/* Functional target navigation routing definitions */}
@@ -61,6 +75,8 @@ const AppRoutes = () => {
       <Route path="/inbox" element={guarded(<InboxPage />)} />
       <Route path="/projects" element={guarded(<AllProjectsPage />)} />
       <Route path="/schedule" element={guarded(<CalendarPage />)} />
+
+      <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />} />
     </Routes>
   );
 };

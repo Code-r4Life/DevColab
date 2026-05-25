@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { PageShell } from "../../components/layout/PageShell";
 import { Button, Badge, Avatar } from "../../components/ui";
 import { cn } from "../../assets/utils";
@@ -14,6 +14,7 @@ const Dashboard = () => {
   const { currentWorkspace, projects, fetchProjects } = useWorkspace();
   const [tasks, setTasks] = useState([]);
   const [activities, setActivities] = useState([]);
+  const navigate = useNavigate();
 
   const workspaceId = currentWorkspace?._id || currentWorkspace?.id;
   
@@ -44,6 +45,12 @@ const Dashboard = () => {
   const pendingTasks = tasks.filter(
     (task) => taskAssigneeId(task)?.toString() === (user?._id || user?.id) && task.status !== "done"
   );
+  
+  const primaryProjectId = projects[0]?._id || projects[0]?.id;
+
+  const handleSchedule = () => navigate('/schedule'); // Updated to use your new schedule route
+  const handleNewProject = () => navigate('/projects/new');
+  const handleViewFeed = () => navigate(primaryProjectId ? `/project/${primaryProjectId}/activity` : '/projects');
 
   return (
     <PageShell breadcrumbs={["Dashboard"]}>
@@ -54,24 +61,16 @@ const Dashboard = () => {
             <p className="text-gray-500">Here's what's happening across your projects today.</p>
           </div>
           
-          {/* Linked the header configuration buttons to your live pages */}
           <div className="flex gap-3">
-            {/* FIXED HUMAN-WRITTEN CODE */}
-          <Link to="/schedule">
-             <Button variant="secondary" className="gap-2">
-               <Calendar size={18} /> My Schedule
-              </Button> 
-            </Link>
-            
-            <Link to="/projects">
-              <Button className="gap-2">
-                <Plus size={18} /> New Project
-              </Button>
-            </Link>
+            <Button variant="secondary" className="gap-2" onClick={handleSchedule}>
+              <Calendar size={18} /> My Schedule
+            </Button>
+            <Button className="gap-2" onClick={handleNewProject}>
+              <Plus size={18} /> New Project
+            </Button>
           </div>
         </div>
 
-        {/* AI Action Cards with static Tailwind color utility classes */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
             ["Summarize Daily", Zap, "bg-primary/10 text-primary border-primary/20"],
@@ -81,7 +80,7 @@ const Dashboard = () => {
             <Link 
               key={label} 
               to={projects[0] ? `/project/${projects[0]._id || projects[0].id}/ai` : "/dashboard"} 
-              className="surface p-4 rounded-xl flex items-center gap-4 hover:border-primary transition-all group text-left"
+              className="surface p-4 rounded-xl flex items-center gap-4 hover:border-primary transition-all group text-left card-interactive"
             >
               <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center border", colorClasses)}>
                 <Icon size={20} />
@@ -112,7 +111,7 @@ const Dashboard = () => {
                     <Link 
                       to={targetProjectId ? `/project/${targetProjectId}/board` : "/dashboard"} 
                       key={task._id || task.id} 
-                      className="surface p-3 rounded-lg flex items-center justify-between hover:border-dark-border bg-white/5"
+                      className="surface p-3 rounded-lg flex items-center justify-between hover:border-dark-border bg-white/5 card-interactive"
                     >
                       <div className="flex items-center gap-3">
                         <div className={cn(
@@ -142,7 +141,7 @@ const Dashboard = () => {
                   <Link 
                     to={`/project/${project._id || project.id}/board`} 
                     key={project._id || project.id} 
-                    className="surface p-5 rounded-xl hover:translate-y-[-2px] transition-all cursor-pointer group"
+                    className="surface p-5 rounded-xl hover:translate-y-[-2px] transition-all cursor-pointer group card-interactive"
                   >
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
@@ -165,7 +164,7 @@ const Dashboard = () => {
             </section>
           </div>
 
-          <section className="surface p-6 rounded-2xl h-fit sticky top-24">
+          <section className="surface p-6 rounded-2xl h-fit sticky top-24 card-interactive">
             <h2 className="text-lg font-bold mb-6">Recent Activity</h2>
             <div className="space-y-6">
               {activities.length === 0 && <p className="text-sm text-gray-500">No activity yet.</p>}
@@ -183,11 +182,9 @@ const Dashboard = () => {
               ))}
             </div>
             
-            <Link to="/project/activity">
-              <Button variant="secondary" className="w-full mt-8 py-2 text-xs">
-                View Full Feed <ArrowRight size={14} />
-              </Button>
-            </Link>
+            <Button variant="secondary" className="w-full mt-8 py-2 text-xs" onClick={handleViewFeed}>
+              View Full Feed <ArrowRight size={14} />
+            </Button>
           </section>
         </div>
       </div>
