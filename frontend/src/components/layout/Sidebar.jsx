@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { useInbox } from '../../context/useInbox';
+import { NavLink, Link } from 'react-router-dom';
 import { 
   Home, 
   CheckSquare, 
@@ -9,7 +10,8 @@ import {
   User, 
   Moon, 
   Sun,
-  Plus
+  Plus,
+  Calendar
 } from 'lucide-react';
 import { useWorkspace } from '../../context/useWorkspace';
 import { useTheme } from '../../context/useTheme';
@@ -19,20 +21,21 @@ export const Sidebar = ({ isCollapsed }) => {
   const { currentWorkspace, projects } = useWorkspace();
   const { theme, toggleTheme } = useTheme();
   const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(false);
+  const { unreadCount } = useInbox();
 
   const navItems = [
-    { icon: Home, label: 'Home', path: '/dashboard' },
-    { icon: CheckSquare, label: 'My Tasks', path: '/tasks' },
-    { icon: Inbox, label: 'Inbox', path: '/inbox', badge: 3 },
-    { icon: Folder, label: 'All Projects', path: '/projects' },
-  ];
+  { icon: Home, label: 'Home', path: '/dashboard' },
+  { icon: CheckSquare, label: 'My Tasks', path: '/tasks' },
+  { icon: Calendar, label: 'My Schedule', path: '/schedule' },
+  { icon: Inbox, label: 'Inbox', path: '/inbox', badge: unreadCount }, // <-- Connected!
+  { icon: Folder, label: 'All Projects', path: '/projects' },
+];
 
   return (
     <aside className={cn(
       "surface sticky top-0 h-screen transition-all duration-300 flex flex-col z-40 border-r",
       isCollapsed ? "w-[60px]" : "w-[240px]"
     )}>
-      {/* Workspace Switcher */}
       <div className="p-4 border-b dark:border-dark-border light:border-light-border">
         <button 
           onClick={() => setIsWorkspaceOpen(!isWorkspaceOpen)}
@@ -48,7 +51,6 @@ export const Sidebar = ({ isCollapsed }) => {
         </button>
       </div>
 
-      {/* Nav Items */}
       <nav className="flex-1 overflow-y-auto p-2 space-y-1">
         {navItems.map((item) => (
           <NavLink
@@ -88,14 +90,15 @@ export const Sidebar = ({ isCollapsed }) => {
         ))}
         
         {!isCollapsed && (
-           <button className="flex items-center gap-3 px-3 py-2 w-full text-gray-500 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-all mt-2">
-            <Plus size={16} />
-            <span>New Project</span>
-          </button>
+          <Link to="/projects" className="block w-full">
+            <button className="flex items-center gap-3 px-3 py-2 w-full text-gray-500 hover:bg-black/5 dark:hover:bg-white/5 rounded-md transition-all mt-2">
+              <Plus size={16} />
+              <span>New Project</span>
+            </button>
+          </Link>
         )}
       </nav>
 
-      {/* Bottom Actions */}
       <div className="p-2 border-t dark:border-dark-border light:border-light-border space-y-1">
         <button 
           onClick={toggleTheme}
@@ -104,9 +107,13 @@ export const Sidebar = ({ isCollapsed }) => {
           {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
           {!isCollapsed && <span className="font-medium">Theme</span>}
         </button>
+        
         <NavLink
           to="/settings/profile"
-          className="flex items-center gap-3 px-3 py-2 rounded-md text-gray-500 hover:bg-black/5 dark:hover:bg-white/5 transition-all"
+          className={({ isActive }) => cn(
+            "flex items-center gap-3 px-3 py-2 rounded-md transition-all",
+            isActive ? "bg-primary/10 text-primary border-l-2 border-primary" : "text-gray-500 hover:bg-black/5 dark:hover:bg-white/5"
+          )}
         >
           <User size={20} />
           {!isCollapsed && <span className="font-medium">Profile</span>}

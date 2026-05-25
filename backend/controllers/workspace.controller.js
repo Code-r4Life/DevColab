@@ -100,3 +100,41 @@ export const removeMember = asyncHandler(async (req, res) => {
   await logActivity({ userId: req.user.id, workspaceId: workspace._id, action: 'member.removed', entityType: 'member', entityId: req.params.userId });
   return message(res, 'Member removed');
 });
+
+/**
+ * NEW: Updates a workspace subscription level matrix
+ * ROUTE TARGET: PUT /api/workspaces/:workspaceId/upgrade
+ */
+export const upgradeWorkspacePlan = asyncHandler(async (req, res) => {
+  const { workspaceId } = req.params;
+  const { plan } = req.body;
+
+  const allowedPlans = ['free', 'starter', 'pro'];
+  if (!allowedPlans.includes(plan)) {
+    return fail(res, 'Invalid subscription plan tier specified', 422);
+  }
+
+  const workspace = await Workspace.findByIdAndUpdate(
+    workspaceId,
+    { plan },
+    { new: true, runValidators: true }
+  );
+
+  if (!workspace) {
+    return fail(res, 'Workspace target not found', 404);
+  }
+
+  await logActivity({ 
+    userId: req.user.id, 
+    workspaceId: workspace._id, 
+    action: 'workspace.upgraded', 
+    entityType: 'project', 
+    entityId: workspace._id, 
+    entityName: plan 
+  });
+
+  return ok(res, { 
+    message: `Workspace successfully transitioned to the ${plan} plan matrix!`,
+    workspace 
+  });
+});

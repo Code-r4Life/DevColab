@@ -11,10 +11,12 @@ import {
   listProjectTasks,
   moveTask,
   updateTask,
+  getMyWorkspaceTasks,
 } from '../controllers/task.controller.js';
 
 const router = Router();
 router.use(auth);
+router.get('/workspace/:workspaceId/me', requireRole('viewer'), getMyWorkspaceTasks);
 router.post('/', requireRole('member'), createTask);
 router.get('/project/:projectId', requireRole('viewer'), listProjectTasks);
 router.get('/:taskId', getTask);

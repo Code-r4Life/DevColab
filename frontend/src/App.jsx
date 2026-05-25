@@ -8,14 +8,19 @@ import SnippetsPage from "./pages/project/SnippetsPage";
 import WikiPage from "./pages/project/WikiPage";
 import ActivityPage from "./pages/project/ActivityPage";
 import AIPage from "./pages/project/AIPage";
+import CalendarPage from "./pages/dashboard/CalendarPage";
 import WorkspaceSettings from "./pages/settings/WorkspaceSettings";
 import ProfileSettings from "./pages/settings/ProfileSettings";
 import PricingPage from "./pages/upgrade/PricingPage";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { WorkspaceProvider } from "./context/WorkspaceContext";
+import { InboxProvider } from "./context/useInbox"; // Added real-life notification hook provider
 import { useAuth } from "./context/useAuth";
 import { useWorkspace } from "./context/useWorkspace";
+import TasksPage from "./pages/dashboard/TasksPage";
+import InboxPage from "./pages/dashboard/InboxPage";
+import AllProjectsPage from "./pages/dashboard/AllProjectsPage";
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -38,6 +43,8 @@ const AppRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/onboarding/workspace" element={<ProtectedRoute><CreateWorkspace /></ProtectedRoute>} />
+      
+      {/* Guarded platform dashboard core endpoints */}
       <Route path="/dashboard" element={guarded(<Dashboard />)} />
       <Route path="/project/:id/board" element={guarded(<KanbanPage />)} />
       <Route path="/project/:id/snippets" element={guarded(<SnippetsPage />)} />
@@ -48,6 +55,12 @@ const AppRoutes = () => {
       <Route path="/settings/profile" element={guarded(<ProfileSettings />)} />
       <Route path="/upgrade" element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      
+      {/* Functional target navigation routing definitions */}
+      <Route path="/tasks" element={guarded(<TasksPage />)} />
+      <Route path="/inbox" element={guarded(<InboxPage />)} />
+      <Route path="/projects" element={guarded(<AllProjectsPage />)} />
+      <Route path="/schedule" element={guarded(<CalendarPage />)} />
     </Routes>
   );
 };
@@ -57,7 +70,10 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <WorkspaceProvider>
-          <AppRoutes />
+          {/* InboxProvider acts as a child of WorkspaceProvider to correctly parse currentWorkspace updates */}
+          <InboxProvider>
+            <AppRoutes />
+          </InboxProvider>
         </WorkspaceProvider>
       </AuthProvider>
     </ThemeProvider>

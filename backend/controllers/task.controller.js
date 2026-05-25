@@ -1,11 +1,11 @@
 import Task from '../models/Task.js';
 import Project from '../models/Project.js';
 import User from '../models/User.js';
-import asyncHandler from '../utils/asyncHandler.js';
+import asyncHandler from '../Utils/asyncHandler.js';
 import { emitToProject } from '../config/socket.js';
-import { createNotification } from '../utils/notifications.js';
-import logActivity from '../utils/logActivity.js';
-import { fail, ok, message } from '../utils/http.js';
+import { createNotification } from '../Utils/notifications.js';
+import logActivity from '../Utils/logActivity.js';
+import { fail, ok, message } from '../Utils/http.js';
 
 const populateTask = (query) => query
   .populate('assigneeId', 'name avatar email')
@@ -128,4 +128,25 @@ export const addAttachment = asyncHandler(async (req, res) => {
   await task.save();
   await logActivity({ userId: req.user.id, workspaceId: task.workspaceId, projectId: task.projectId, action: 'task.attachment_added', entityType: 'task', entityId: task._id, entityName: task.title });
   return ok(res, { attachment: task.attachments[task.attachments.length - 1] }, 201);
+});
+
+export const getMyWorkspaceTasks = asyncHandler(async (req, res) => {
+  const { workspaceId } = req.params;
+  const userId = req.user.id; 
+
+  if (!workspaceId) {
+    return fail(res, 'Workspace ID is required', 422);
+  }
+
+  const workspaceProjects = await Project.find({ workspaceId }).select('_id');
+  const projectIds = workspaceProjects.map(p => p._id);
+
+  const userTasks = await populateTask(
+    Task.find({
+      projectId: { $in: projectIds },
+      assigneeId: userId 
+    }).sort({ dueDate: 1, createdAt: -1 })
+  );
+
+  return ok(res, { tasks: userTasks });
 });

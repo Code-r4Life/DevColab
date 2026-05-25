@@ -2,22 +2,46 @@ import { useState } from "react";
 import { PageShell } from "../../components/layout/PageShell";
 import { Button, Modal, Input, Avatar } from "../../components/ui";
 import { Check, ShieldCheck, Zap, Star } from "lucide-react";
+import { useWorkspace } from "../../context/useWorkspace"; // Adjust import path based on your directory layout
+import api from "../../lib/api"; // Adjust to your centralized Axios/Fetch runtime interface instance
 
 const PricingPage = () => {
+  const { currentWorkspace, fetchWorkspaces } = useWorkspace();
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleUpgrade = () => {
+  // Read current active workspace properties safely
+  const activePlan = currentWorkspace?.plan || "free";
+  const workspaceId = currentWorkspace?._id || currentWorkspace?.id;
+
+  const handleUpgradeClick = () => {
+    if (!workspaceId) {
+      alert("Please select or create an active workspace first before upgrading.");
+      return;
+    }
     setIsUpgradeModalOpen(true);
   };
 
-  const handlePayment = () => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
+  const handlePayment = async () => {
+    try {
+      setIsProcessing(true);
+
+      // Fire network transaction payload directly to the new backend helper controller
+      await api.put(`/workspaces/${workspaceId}/upgrade`, { plan: "pro" });
+
+      // Trigger structural frontend context data re-validation to immediately update states global-wide
+      if (typeof fetchWorkspaces === "function") {
+        await fetchWorkspaces();
+      }
+
       setIsUpgradeModalOpen(false);
       alert("Upgrade successful! Welcome to Pro.");
-    }, 2000);
+    } catch (err) {
+      console.error("Failed to process workspace tier upgrade request transaction:", err);
+      alert(err.response?.data?.message || "Payment transaction processing gateway failure.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -33,7 +57,7 @@ const PricingPage = () => {
         </div>
 
         <div className="grid md:grid-cols-2 gap-10">
-          {/* Free Plan */}
+          {/* Free / Starter Plan Card */}
           <div className="surface p-10 rounded-3xl border space-y-8 flex flex-col justify-between hover:scale-[1.02] transition-transform duration-500">
             <div className="space-y-6">
               <div className="flex items-center gap-3">
@@ -64,12 +88,16 @@ const PricingPage = () => {
                 ))}
               </ul>
             </div>
-            <Button variant="secondary" className="w-full py-4 text-lg">
-              Current Plan
+            <Button 
+              variant="secondary" 
+              className="w-full py-4 text-lg" 
+              disabled={activePlan === "free" || activePlan === "starter"}
+            >
+              {(activePlan === "free" || activePlan === "starter") ? "Current Plan" : "Starter Tier"}
             </Button>
           </div>
 
-          {/* Pro Plan */}
+          {/* Pro Plan Card */}
           <div className="bg-primary/10 border-4 border-primary p-10 rounded-3xl space-y-8 flex flex-col justify-between relative overflow-hidden hover:scale-[1.02] transition-transform duration-500 group shadow-2xl shadow-primary/20">
             <div className="absolute top-6 right--10 bg-primary text-white px-10 py-1 rotate-45 text-xs font-bold uppercase tracking-widest">
               Best Value
@@ -106,8 +134,12 @@ const PricingPage = () => {
                 ))}
               </ul>
             </div>
-            <Button className="w-full py-4 text-lg" onClick={handleUpgrade}>
-              Upgrade to Pro
+            <Button 
+              className="w-full py-4 text-lg" 
+              onClick={handleUpgradeClick}
+              disabled={activePlan === "pro"}
+            >
+              {activePlan === "pro" ? "Active Current Plan" : "Upgrade to Pro"}
             </Button>
           </div>
         </div>

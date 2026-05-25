@@ -1,38 +1,57 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { validationResult } from 'express-validator';
 import User from '../models/User.js';
-import { fail, ok } from '../utils/http.js';
+import Workspace from '../models/Workspace.js';
 import asyncHandler from '../utils/asyncHandler.js';
-
-const signToken = (user) => jwt.sign({ id: user._id.toString() }, process.env.JWT_SECRET, { expiresIn: '7d' });
-
-const publicUser = async (userId) => User.findById(userId).select('-passwordHash').populate('workspaces');
+import { ok, fail } from '../utils/http.js';
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs'; // (Change to 'bcrypt' if this throws a missing module error)
 
 export const register = asyncHandler(async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) return fail(res, errors.array()[0].msg, 422, { errors: errors.array() });
   const { name, email, password } = req.body;
-  const normalizedEmail = email.toLowerCase();
-  const existing = await User.findOne({ email: normalizedEmail });
-  if (existing) return fail(res, 'Email is already registered', 409);
-  const passwordHash = await bcrypt.hash(password, 12);
-  const user = await User.create({ name, email: normalizedEmail, passwordHash, avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}` });
-  const hydrated = await publicUser(user._id);
-  return ok(res, { token: signToken(user), user: hydrated }, 201);
+  if (!name || !email || !password) return fail(res, 'All fields are required', 422);
+
+  const existingUser = await User.findOne({ email: email.toLowerCase() });
+  if (existingUser) return fail(res, 'Email already registered', 400);
+
+  // 🛠️ THE FIX: Securely encrypt the password into a hash before saving
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt);
+
+  // Map the encrypted password to 'passwordHash' to perfectly match your database schema
+  const user = await User.create({ 
+    name, 
+    email: email.toLowerCase(), 
+    passwordHash: hashedPassword 
+  });
+
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+
+  return ok(res, {
+    token,
+    user: { id: user._id, name: user.name, email: user.email }
+  }, 201);
 });
 
 export const login = asyncHandler(async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) return fail(res, errors.array()[0].msg, 422, { errors: errors.array() });
   const { email, password } = req.body;
+  if (!email || !password) return fail(res, 'Email and password are required', 422);
+
   const user = await User.findOne({ email: email.toLowerCase() });
-  if (!user || !(await user.comparePassword(password))) return fail(res, 'Invalid email or password', 401);
-  const hydrated = await publicUser(user._id);
-  return ok(res, { token: signToken(user), user: hydrated });
+  
+  // Verify the password using your schema's built-in comparison method
+  if (!user || !(await user.comparePassword(password))) {
+    return fail(res, 'Invalid email or password', 401);
+  }
+
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+
+  return ok(res, {
+    token,
+    user: { id: user._id, name: user.name, email: user.email, avatar: user.avatar }
+  });
 });
 
 export const me = asyncHandler(async (req, res) => {
-  const user = await publicUser(req.user.id);
+  const user = await User.findById(req.user.id).select('-passwordHash');
+  if (!user) return fail(res, 'User not found', 404);
   return ok(res, { user });
 });
