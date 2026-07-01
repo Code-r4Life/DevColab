@@ -31,15 +31,15 @@ export const createInvite = asyncHandler(async (req, res) => {
   const invitedByUser = await User.findById(req.user.id).select('name');
 
   await transporter.sendMail({
-    from: `"DevColab" <${process.env.EMAIL_USER}>`,
+    from: `"DevCollab" <${process.env.EMAIL_USER}>`,
     to: email,
-    subject: `You've been invited to join ${workspace?.name || 'a workspace'} on DevColab`,
+    subject: `You've been invited to join ${workspace?.name || 'a workspace'} on DevCollab`,
     html: `
       <div style="font-family:Inter,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#0a0a0b;color:#fff;border-radius:16px;">
         <h1 style="font-size:22px;margin-bottom:8px;">You're invited! 🎉</h1>
         <p style="color:#9ca3af;margin-bottom:24px;">
           <strong style="color:#fff">${invitedByUser?.name || 'Someone'}</strong> has invited you to join
-          <strong style="color:#7c3aed">${workspace?.name || 'a workspace'}</strong> on DevColab as a
+          <strong style="color:#7c3aed">${workspace?.name || 'a workspace'}</strong> on DevCollab as a
           <strong style="color:#fff">${role}</strong>.
         </p>
         <a href="${acceptUrl}"

@@ -11,6 +11,7 @@ import {
 import api, { unwrap } from '../../lib/api';
 import { useAuth } from '../../context/useAuth';
 import { timeAgo } from '../../lib/format';
+import { wikiSocket } from '../../lib/socket';
 
 // TipTap imports
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -58,6 +59,8 @@ const WikiPage = () => {
   const { user } = useAuth();
   const [projectName, setProjectName] = useState('');
   const [pages, setPages] = useState([]);
+  const [activeCollaborators, setActiveCollaborators] = useState([]);
+  const [remoteCursors, setRemoteCursors] = useState({});
   const [selectedPageId, setSelectedPageId] = useState(null);
   const [selectedPage, setSelectedPage] = useState(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -160,7 +163,23 @@ const WikiPage = () => {
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
       setPreviewHtml(html);
+      if (selectedPageId) {
+        wikiSocket.emit('wiki:content-change', {
+          pageId: selectedPageId,
+          content: html
+        });
+      }
     },
+    onSelectionUpdate: ({ editor }) => {
+      const { from, to } = editor.state.selection;
+      if (selectedPageId) {
+        wikiSocket.emit('wiki:cursor-move', {
+          pageId: selectedPageId,
+          cursor: from,
+          selectionRange: { from, to }
+        });
+      }
+    }
   });
 
   const loadPages = async () => {
@@ -199,6 +218,80 @@ const WikiPage = () => {
       .then((res) => setProjectName(unwrap(res).project?.name || ''))
       .catch(() => {});
   }, [projectId]);
+
+  // Real-time sockets subscription
+  useEffect(() => {
+    if (!selectedPageId || !user) return;
+
+    if (!wikiSocket.connected) {
+      wikiSocket.connect();
+    }
+
+    wikiSocket.emit('join_wiki', {
+      pageId: selectedPageId,
+      userId: user._id || user.id,
+      userName: user.name,
+      avatar: user.avatar
+    });
+
+    const handleUsersUpdate = (users) => {
+      setActiveCollaborators(users.filter(u => u.socketId !== wikiSocket.id));
+    };
+
+    const handleContentChange = ({ content, title, senderSocketId }) => {
+      if (senderSocketId === wikiSocket.id) return;
+      if (title !== undefined) {
+        setSelectedPage(prev => prev ? { ...prev, title } : prev);
+      }
+      if (content !== undefined) {
+        setSelectedPage(prev => prev ? { ...prev, content } : prev);
+        setPreviewHtml(content);
+        if (editor && editor.getHTML() !== content) {
+          const { from, to } = editor.state.selection;
+          editor.commands.setContent(content, false);
+          try {
+            editor.commands.setTextSelection({ from: Math.min(from, content.length), to: Math.min(to, content.length) });
+          } catch (e) {}
+        }
+      }
+    };
+
+    const handleCursorChange = ({ socketId, userId, userName, avatar, cursor, selectionRange }) => {
+      setRemoteCursors(prev => ({
+        ...prev,
+        [socketId]: { userId, userName, avatar, cursor, selectionRange, updatedAt: Date.now() }
+      }));
+    };
+
+    wikiSocket.on('wiki:users-update', handleUsersUpdate);
+    wikiSocket.on('wiki:content-change', handleContentChange);
+    wikiSocket.on('wiki:cursor-change', handleCursorChange);
+
+    return () => {
+      wikiSocket.emit('leave_wiki', { pageId: selectedPageId });
+      wikiSocket.off('wiki:users-update', handleUsersUpdate);
+      wikiSocket.off('wiki:content-change', handleContentChange);
+      wikiSocket.off('wiki:cursor-change', handleCursorChange);
+    };
+  }, [selectedPageId, user, editor]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setRemoteCursors(prev => {
+        const next = { ...prev };
+        let changed = false;
+        for (const [socketId, info] of Object.entries(next)) {
+          if (now - info.updatedAt > 15000) {
+            delete next[socketId];
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Auto-save effect using ref timer and previewHtml
   useEffect(() => {
@@ -730,6 +823,17 @@ const WikiPage = () => {
             </div>
 
             <div className="flex items-center gap-4">
+              {/* Collaborator Avatars */}
+              {activeCollaborators.length > 0 && (
+                <div className="flex items-center -space-x-1.5 mr-2">
+                  {activeCollaborators.map((c) => (
+                    <div key={c.socketId} className="relative group cursor-help" title={`${c.userName} is active on this page`}>
+                      <Avatar src={c.avatar} size="xs" className="border border-dark-bg hover:scale-110 transition-transform" />
+                      <span className="absolute bottom-0 right-0 w-1.5 h-1.5 bg-green-500 rounded-full border border-dark-bg" />
+                    </div>
+                  ))}
+                </div>
+              )}
               {/* Custom Auto Save Checkbox */}
               <div className="flex items-center gap-2 select-none">
                 <div
@@ -787,7 +891,16 @@ const WikiPage = () => {
                   <input 
                     className="text-5xl font-bold bg-transparent border-none outline-none w-full text-gray-100" 
                     value={selectedPage.title || ''} 
-                    onChange={(e) => setSelectedPage((prev) => ({ ...prev, title: e.target.value }))} 
+                    onChange={(e) => {
+                      const newTitle = e.target.value;
+                      setSelectedPage((prev) => ({ ...prev, title: newTitle }));
+                      if (selectedPageId) {
+                        wikiSocket.emit('wiki:content-change', {
+                          pageId: selectedPageId,
+                          title: newTitle
+                        });
+                      }
+                    }} 
                   />
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -803,6 +916,17 @@ const WikiPage = () => {
                     <div className="input-field min-h-[420px] border rounded-lg focus-within:ring-2 focus-within:ring-primary/50 overflow-auto resize-y">
                       <EditorContent editor={editor} />
                     </div>
+                    {Object.values(remoteCursors).length > 0 && (
+                      <div className="flex flex-wrap gap-2 text-xs text-gray-400 mt-2 bg-dark-bg/30 p-2 rounded-lg border border-white/5">
+                        <span className="font-semibold text-primary">Active Cursors:</span>
+                        {Object.values(remoteCursors).map((rc, idx) => (
+                          <div key={idx} className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                            <Avatar src={rc.avatar} size="xs" />
+                            <span>{rc.userName} is editing (pos {rc.cursor})</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   {/* Exact Live HTML Preview Container */}
                   <div className="surface rounded-2xl p-4 border flex flex-col">

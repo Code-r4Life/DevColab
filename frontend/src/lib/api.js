@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // TOKEN_KEY kept for socket.js which still needs it for Socket.IO auth
 // Socket.IO doesn't support cookies so we store a separate socket token
-export const TOKEN_KEY = 'devcolab_socket_token';
+export const TOKEN_KEY = 'devcollab_socket_token';
 
 export const getSocketToken = () => localStorage.getItem(TOKEN_KEY);
 export const setSocketToken = (token) => localStorage.setItem(TOKEN_KEY, token);
