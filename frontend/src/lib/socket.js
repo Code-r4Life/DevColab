@@ -14,10 +14,11 @@ const withAuth = () => ({
 export const boardSocket = io(`${SOCKET_URL}/board`, withAuth());
 export const presenceSocket = io(`${SOCKET_URL}/presence`, withAuth());
 export const notifSocket = io(`${SOCKET_URL}/notifications`, withAuth());
+export const wikiSocket = io(`${SOCKET_URL}/wiki`, withAuth());
 
 export const refreshSocketAuth = () => {
   const token = getSocketToken();
-  [boardSocket, presenceSocket, notifSocket].forEach((socket) => {
+  [boardSocket, presenceSocket, notifSocket, wikiSocket].forEach((socket) => {
     socket.auth = { token };
     // If socket is already connected, reconnect with new token
     if (socket.connected) {
@@ -27,5 +28,5 @@ export const refreshSocketAuth = () => {
 };
 
 export const disconnectSockets = () => {
-  [boardSocket, presenceSocket, notifSocket].forEach((socket) => socket.disconnect());
+  [boardSocket, presenceSocket, notifSocket, wikiSocket].forEach((socket) => socket.disconnect());
 };

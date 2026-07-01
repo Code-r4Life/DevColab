@@ -54,7 +54,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(passport.initialize());
 
 app.get('/health', (req, res) => res.json({ success: true, message: 'DevCollab backend is healthy' }));
-app.get('/health', (req, res) => res.json({ success: true, message: 'DevColab backend is healthy' }));
+app.get('/health', (req, res) => res.json({ success: true, message: 'DevCollab backend is healthy' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/workspaces', workspaceRoutes);
@@ -70,7 +70,7 @@ app.use(errorHandler);
 
 connectDB()
   .then(() => {
-    httpServer.listen(PORT, () => console.log(`DevColab backend running on port ${PORT}`));
+    httpServer.listen(PORT, () => console.log(`DevCollab backend running on port ${PORT}`));
 
     Snippet.syncIndexes()
       .then(() => console.log('Snippet indexes synchronized'))
@@ -79,6 +79,6 @@ connectDB()
       });
   })
   .catch((error) => {
-    console.error('Failed to start DevColab backend:', error.message);
+    console.error('Failed to start DevCollab backend:', error.message);
     process.exit(1);
   });

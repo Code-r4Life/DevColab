@@ -40,7 +40,7 @@ export const Sidebar = ({ isCollapsed }) => {
           <img
             src={
               currentWorkspace?.avatar ||
-              "https://ui-avatars.com/api/?name=DevColab"
+              "https://ui-avatars.com/api/?name=DevCollab"
             }
             alt=""
             className="w-8 h-8 rounded-md"
