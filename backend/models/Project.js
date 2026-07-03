@@ -2,7 +2,11 @@ import mongoose from 'mongoose';
 
 const projectMemberSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  role: { type: String, enum: ['admin', 'member', 'viewer'], default: 'member' },
+  role: { 
+    type: String, 
+    enum: ['Owner', 'Admin', 'Contributor', 'Member', 'Viewer'], 
+    default: 'Member' 
+  },
 }, { _id: false });
 
 const projectSchema = new mongoose.Schema({
@@ -17,6 +21,12 @@ const projectSchema = new mongoose.Schema({
 });
 
 projectSchema.index({ workspaceId: 1, isArchived: 1 });
-projectSchema.set('toJSON', { transform: (doc, ret) => { ret.id = ret._id.toString(); delete ret.__v; return ret; } });
+projectSchema.set('toJSON', { 
+  transform: (doc, ret) => { 
+    ret.id = ret._id.toString(); 
+    delete ret.__v; 
+    return ret; 
+  } 
+});
 
 export default mongoose.model('Project', projectSchema);
