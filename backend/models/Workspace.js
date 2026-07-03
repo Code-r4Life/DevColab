@@ -2,7 +2,12 @@ import mongoose from 'mongoose';
 
 const memberSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  role: { type: String, enum: ['owner', 'admin', 'member', 'viewer'], default: 'member' },
+  role: { 
+    type: String, 
+    // The new 5 professional roles requested by your leader
+    enum: ['Owner', 'Admin', 'Contributor', 'Member', 'Viewer'], 
+    default: 'Member' 
+  },
   joinedAt: { type: Date, default: Date.now },
 }, { _id: false });
 
@@ -32,8 +37,6 @@ workspaceSchema.set('toJSON', {
   },
 });
 
-// Prevent duplicate members at query level
-// This does NOT enforce at DB level but works with the controller's alreadyMember check
 workspaceSchema.pre('save', function (next) {
   const seen = new Set();
   this.members = this.members.filter((m) => {

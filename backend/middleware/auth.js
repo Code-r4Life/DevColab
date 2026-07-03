@@ -3,7 +3,7 @@ import User from '../models/User.js';
 
 const auth = async (req, res, next) => {
   try {
-    // Read token from httpOnly cookie instead of Authorization header
+
     const token = req.cookies?.devcollab_token;
 
     if (!token) {
@@ -16,7 +16,13 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'User not found' });
     }
 
-    req.user = { id: user._id.toString(), _id: user._id, email: user.email, name: user.name };
+    req.user = { 
+      id: user._id.toString(), 
+      _id: user._id, 
+      email: user.email, 
+      name: user.name,
+      role: user.role 
+    };
     req.currentUser = user;
     next();
   } catch (error) {

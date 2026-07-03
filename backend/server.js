@@ -27,6 +27,7 @@ import activityRoutes from './routes/activity.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import inviteRoutes from './routes/invite.routes.js';
 import aiRoutes from './routes/ai.routes.js';
+import roleRoutes from './routes/role.routes.js';
 import errorHandler from './middleware/errorHandler.js';
 
 const app = express();
@@ -54,7 +55,6 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(passport.initialize());
 
 app.get('/health', (req, res) => res.json({ success: true, message: 'DevCollab backend is healthy' }));
-app.get('/health', (req, res) => res.json({ success: true, message: 'DevCollab backend is healthy' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/workspaces', workspaceRoutes);
@@ -66,6 +66,7 @@ app.use('/api/activity', activityRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/invites', inviteRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/role', roleRoutes);
 app.use(errorHandler);
 
 connectDB()

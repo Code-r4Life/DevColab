@@ -17,7 +17,7 @@ import {
   Upload,
 } from 'lucide-react';
 
-const ROLES = ['member', 'admin', 'viewer'];
+const ROLES = ['Owner', 'Admin', 'Contributor', 'Member', 'Viewer'];
 
 const WorkspaceSettings = () => {
   const navigate = useNavigate();
@@ -34,7 +34,7 @@ const WorkspaceSettings = () => {
 
   // invite state
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('member');
+  const [inviteRole, setInviteRole] = useState('Member');
   const [inviting, setInviting] = useState(false);
   const [inviteMsg, setInviteMsg] = useState({ text: '', type: '' });
 
@@ -47,7 +47,7 @@ const WorkspaceSettings = () => {
 
   const workspaceId = currentWorkspace?._id || currentWorkspace?.id;
   const isOwner = currentWorkspace?.members?.find(
-    (m) => (m.userId?._id || m.userId) === (user?._id || user?.id) && m.role === 'owner'
+    (m) => (m.userId?._id || m.userId) === (user?._id || user?.id) && m.role === 'Owner'
   );
 
   const tabs = [
@@ -63,7 +63,7 @@ const WorkspaceSettings = () => {
       const data = unwrap(await api.get(`/workspaces/${workspaceId}/members`));
       setMembers(data.members || []);
     } catch {
-      // silently fail
+      
     }
   };
 
@@ -388,19 +388,19 @@ const WorkspaceSettings = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            {member.role === 'owner' || isSelf ? (
-                              <Badge variant={member.role === 'owner' ? 'primary' : 'default'} className="capitalize">
+                           <td className="px-6 py-4">
+                            {member.role === 'Owner' || isSelf ? (
+                              <Badge variant={member.role === 'Owner' ? 'primary' : 'default'} className="capitalize">
                                 {member.role}
                               </Badge>
                             ) : (
                               <select
-                                className="input-field py-1 text-xs w-28"
+                                className="input-field py-1 text-xs w-32"
                                 value={member.role}
                                 onChange={(e) => changeRole(uid, e.target.value)}
                               >
                                 {ROLES.map((r) => (
-                                  <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                                  <option key={r} value={r}>{r}</option>
                                 ))}
                               </select>
                             )}
@@ -409,7 +409,7 @@ const WorkspaceSettings = () => {
                             {member.joinedAt ? new Date(member.joinedAt).toLocaleDateString() : 'Now'}
                           </td>
                           <td className="px-6 py-4 text-right">
-                            {!isSelf && member.role !== 'owner' && (
+                            {!isSelf && member.role !== 'Owner' && (
                               <button
                                 className="text-gray-500 hover:text-danger transition-colors"
                                 onClick={() => removeMember(uid)}

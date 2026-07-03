@@ -10,6 +10,13 @@ const userSchema = new mongoose.Schema({
   googleId: { type: String, default: null },
   githubId: { type: String, default: null },
 
+  role: { 
+    type: String, 
+    enum: ['User', 'Owner', 'Admin', 'Student', 'Super Admin'], 
+    default: 'User',
+    required: true 
+  },
+
   avatar: { type: String, default: '' },
   bio: { type: String, default: '' },
   skills: [{ type: String }],
