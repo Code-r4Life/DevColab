@@ -10,14 +10,18 @@ import api, { unwrap } from '../../lib/api';
 import { boardSocket, presenceSocket } from '../../lib/socket';
 import { formatDate, statusLabels, statusOrder } from '../../lib/format';
 import { useAuth } from '../../context/useAuth';
+import { useWorkspace } from '../../context/useWorkspace'; 
 
 const emptyGrouped = () => ({ todo: [], in_progress: [], in_review: [], done: [] });
 
 const KanbanPage = () => {
   const { id: projectId } = useParams();
   const { user } = useAuth();
+  const { currentWorkspace } = useWorkspace(); 
+  const workspaceId = currentWorkspace?._id || currentWorkspace?.id; 
   const [grouped, setGrouped] = useState(emptyGrouped);
   const [projectName, setProjectName] = useState('');
+  const [fetchedWorkspaceId, setFetchedWorkspaceId] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
   const [taskDraft, setTaskDraft] = useState(null);
   const [labelInput, setLabelInput] = useState('');
@@ -77,6 +81,7 @@ const KanbanPage = () => {
     const loadProject = async () => {
       const data = unwrap(await api.get(`/projects/${projectId}`));
       setProjectName(data.project?.name || '');
+      setFetchedWorkspaceId(data.project?.workspaceId);
     };
     loadProject().catch(() => {});
   }, [projectId]);
@@ -116,28 +121,43 @@ const KanbanPage = () => {
   }, [projectId, user]);
 
   const createTask = async () => {
-  const title = newTitle.trim() || 'New Task';
+    try {
+      const title = newTitle.trim() || 'New Task';
+      const activeWorkspaceId = workspaceId || fetchedWorkspaceId;
+      const data = unwrap(
+        await api.post('/tasks', {
+          title,
+          projectId,
+          workspaceId: activeWorkspaceId, 
+          status: 'todo',
+        })
+      );
+      setNewTitle('');
+      await loadTasks();
+      setSelectedTask(data.task);
+    } catch (err) {
 
-  const data = unwrap(
-    await api.post('/tasks', {
-      title,
-      projectId,
-      status: 'todo',
-    })
-  );
-
-  setNewTitle('');
-  await loadTasks();
-
-  setSelectedTask(data.task);
-};
-
-  const createTaskForStatus = async (status) => {
-    const data = unwrap(await api.post('/tasks', { title: 'New Task', projectId, status }));
-    await loadTasks();
-    setSelectedTask(data.task);
+      alert(err?.response?.data?.message || 'Failed to create task'); 
+    }
   };
 
+  const createTaskForStatus = async (status) => {
+    try {
+      const activeWorkspaceId = workspaceId || fetchedWorkspaceId;
+      const data = unwrap(
+        await api.post('/tasks', { 
+          title: 'New Task', 
+          projectId, 
+          workspaceId: activeWorkspaceId, 
+          status 
+        })
+      );
+      await loadTasks();
+      setSelectedTask(data.task);
+    } catch (err) {
+      alert(err?.response?.data?.message || 'Failed to create task');
+    }
+  };
   const moveTask = async (task, status) => {
     const data = unwrap(await api.put(`/tasks/${task._id || task.id}/move`, { status, position: (grouped[status]?.length || 0) + 1 }));
     setSelectedTask(data.task);
@@ -169,8 +189,12 @@ const KanbanPage = () => {
       assigneeId: selectedTask.assigneeId?._id || selectedTask.assigneeId || '',
       dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate).toISOString().slice(0, 10) : '',
       labels: selectedTask.labels || [],
+      color: selectedTask.color || '#7C3AED', // <--- ADDED COLOR STATE
     });
     setLabelInput((selectedTask.labels || []).join(', '));
+      
+      
+      
   }, [selectedTask]);
 
   const saveTask = async () => {
@@ -185,6 +209,7 @@ const KanbanPage = () => {
         assigneeId: taskDraft.assigneeId || undefined,
         dueDate: taskDraft.dueDate ? new Date(taskDraft.dueDate).toISOString() : undefined,
         labels: labelInput.split(',').map((label) => label.trim()).filter(Boolean),
+        color: taskDraft.color || '#7C3AED', 
       };
       const data = unwrap(await api.put(`/tasks/${taskDraft.id}`, payload));
       setSelectedTask(data.task);
@@ -465,9 +490,25 @@ const KanbanPage = () => {
                     onChange={(event) => setTaskDraft((prev) => ({ ...prev, dueDate: event.target.value }))}
                   />
                 </div>
+                
+                {/* --- NEW COLOR PICKER --- */}
+                <div>
+                  <label className="text-xs font-medium text-gray-500">Task Colour</label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <input
+                      type="color"
+                      className="w-8 h-8 rounded cursor-pointer border-0 p-0 bg-transparent"
+                      value={taskDraft?.color || '#7C3AED'}
+                      onChange={(event) => setTaskDraft((prev) => ({ ...prev, color: event.target.value }))}
+                    />
+                    <span className="text-xs text-gray-500 uppercase">{taskDraft?.color || '#7C3AED'}</span>
+                  </div>
+                </div>
+                
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-500">Labels</label>
+ 
                 <input
                   className="input-field mt-1"
                   value={labelInput}

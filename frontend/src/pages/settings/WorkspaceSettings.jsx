@@ -6,6 +6,7 @@ import { cn } from '../../assets/utils';
 import { useWorkspace } from '../../context/useWorkspace';
 import { useAuth } from '../../context/useAuth';
 import api, { unwrap } from '../../lib/api';
+import ActivityFeed from "../../components/ActivityFeed";
 import {
   Settings,
   Users,
@@ -15,6 +16,7 @@ import {
   Send,
   RefreshCw,
   Upload,
+  Activity 
 } from 'lucide-react';
 
 const ROLES = ['Owner', 'Admin', 'Contributor', 'Member', 'Viewer'];
@@ -50,9 +52,11 @@ const WorkspaceSettings = () => {
     (m) => (m.userId?._id || m.userId) === (user?._id || user?.id) && m.role === 'Owner'
   );
 
+  // <--- CHANGED 2: Added the Activity tab here
   const tabs = [
     { id: 'general', label: 'General', icon: Settings },
     { id: 'members', label: 'Members', icon: Users },
+    { id: 'activity', label: 'Activity Feed', icon: Activity },
     { id: 'security', label: 'Security', icon: Shield },
   ];
 
@@ -425,6 +429,19 @@ const WorkspaceSettings = () => {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {/* <--- CHANGED 3: Added the Activity Feed Render Block here */}
+          {/* ── ACTIVITY FEED ── */}
+          {activeTab === 'activity' && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold">Workspace Activity</h2>
+              <p className="text-sm text-gray-500">
+                A complete history of everything happening in {currentWorkspace?.name}.
+              </p>
+              
+              <ActivityFeed workspaceId={workspaceId} />
             </div>
           )}
 

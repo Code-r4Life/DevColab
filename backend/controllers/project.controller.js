@@ -10,18 +10,28 @@ import logActivity from '../utils/logActivity.js';
 export const createProject = asyncHandler(async (req, res) => {
   const { name, description = '', color = '#7C3AED', workspaceId } = req.body;
   if (!name || !workspaceId) return fail(res, 'name and workspaceId are required', 422);
+  
   const workspace = await Workspace.findById(workspaceId);
   if (!workspace) return fail(res, 'Workspace not found', 404);
+  
   const projectCount = await Project.countDocuments({ workspaceId, isArchived: false });
-  if (workspace.plan === 'free' && projectCount >= 3) return fail(res, 'Free plan allows three projects per workspace', 403, { upgrade: true });
+  if (workspace.plan === 'free' && projectCount >= 3) {
+    return fail(res, 'Free plan allows three projects per workspace', 403, { upgrade: true });
+  }
+  
   const project = await Project.create({
     name,
     description,
     color,
     workspaceId,
     createdBy: req.user.id,
-    members: workspace.members.map((member) => ({ userId: member.userId, role: member.role === 'owner' ? 'admin' : member.role })),
+    // Fixed the lowercase 'owner' to match your new professional schemas!
+    members: workspace.members.map((member) => ({ 
+      userId: member.userId, 
+      role: member.role === 'Owner' ? 'Admin' : member.role 
+    })),
   });
+  
   await logActivity({ userId: req.user.id, workspaceId, projectId: project._id, action: 'project.created', entityType: 'project', entityId: project._id, entityName: project.name });
   return ok(res, { project }, 201);
 });
@@ -60,4 +70,40 @@ export const deleteProject = asyncHandler(async (req, res) => {
   ]);
   await logActivity({ userId: req.user.id, workspaceId: project.workspaceId, projectId: project._id, action: 'project.deleted', entityType: 'project', entityId: project._id, entityName: project.name });
   return message(res, 'Project deleted');
+});
+
+// ─── NEW: Project Invitation Controller ─────────────────────────────────────
+export const addProjectMember = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
+  const { userId, role = 'Member' } = req.body;
+
+  if (!userId) return fail(res, 'userId is required', 422);
+
+  const project = await Project.findById(projectId);
+  if (!project) return fail(res, 'Project not found', 404);
+
+  // Check if the user is already inside the project
+  const isAlreadyMember = project.members.some((m) => m.userId.toString() === userId);
+  if (isAlreadyMember) return fail(res, 'User is already a member of this project', 400);
+
+  // Validate against the new professional roles
+  const validRoles = ['Owner', 'Admin', 'Contributor', 'Member', 'Viewer'];
+  if (!validRoles.includes(role)) return fail(res, 'Invalid role provided', 400);
+
+  // Add the user to the project
+  project.members.push({ userId, role });
+  await project.save();
+
+  // Log this for Phase 2!
+  await logActivity({ 
+    userId: req.user.id, 
+    workspaceId: project.workspaceId, 
+    projectId: project._id, 
+    action: 'project.member_added', 
+    entityType: 'project', 
+    entityId: project._id, 
+    entityName: project.name 
+  });
+
+  return ok(res, { project }, 200);
 });
