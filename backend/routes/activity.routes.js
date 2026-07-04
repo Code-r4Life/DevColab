@@ -6,6 +6,11 @@ import { getWorkspaceActivity } from '../controllers/activity.controller.js';
 const router = Router();
 
 router.use(auth);
-router.get('/workspace/:workspaceId', roleCheck('Owner', 'Admin', 'Contributor', 'Member'), getWorkspaceActivity);
+
+router.get(
+  '/workspace/:workspaceId', 
+  roleCheck('Owner', 'Admin', 'Contributor', 'Member', 'Viewer'), 
+  getWorkspaceActivity
+);
 
 export default router;

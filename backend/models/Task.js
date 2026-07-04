@@ -19,6 +19,7 @@ const taskSchema = new mongoose.Schema({
   description: { type: String, default: '' },
   status: { type: String, enum: ['todo', 'in_progress', 'in_review', 'done'], default: 'todo' },
   priority: { type: String, enum: ['P0', 'P1', 'P2'], default: 'P1' },
+  color: { type: String, default: '#7C3AED' }, // <--- ADDED: Color string for the UI
   assigneeId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   projectId: { type: mongoose.Schema.Types.ObjectId, ref: 'Project', required: true },
   workspaceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Workspace', required: true },
