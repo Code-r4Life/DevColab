@@ -3,24 +3,24 @@ import { getSocketToken } from './api';
 
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
 
-// Socket.IO cannot use httpOnly cookies — it needs the token explicitly
-// We use a separate socketToken stored in localStorage just for this purpose
 const withAuth = () => ({
   autoConnect: false,
-  withCredentials: true, // still send cookies for any cookie-based checks
-  auth: { token: getSocketToken() }, // but also send token explicitly for Socket.IO auth
+  withCredentials: true, 
+  auth: { token: getSocketToken() }, 
 });
 
+// Connected via clean namespaces
 export const boardSocket = io(`${SOCKET_URL}/board`, withAuth());
 export const presenceSocket = io(`${SOCKET_URL}/presence`, withAuth());
-export const notifSocket = io(`${SOCKET_URL}/notifications`, withAuth());
 export const wikiSocket = io(`${SOCKET_URL}/wiki`, withAuth());
+
+// UPDATED: Connecting directly to the /notifications namespace cleanly
+export const notificationSocket = io(`${SOCKET_URL}/notifications`, withAuth());
 
 export const refreshSocketAuth = () => {
   const token = getSocketToken();
-  [boardSocket, presenceSocket, notifSocket, wikiSocket].forEach((socket) => {
+  [boardSocket, presenceSocket, notificationSocket, wikiSocket].forEach((socket) => {
     socket.auth = { token };
-    // If socket is already connected, reconnect with new token
     if (socket.connected) {
       socket.disconnect().connect();
     }
@@ -28,5 +28,5 @@ export const refreshSocketAuth = () => {
 };
 
 export const disconnectSockets = () => {
-  [boardSocket, presenceSocket, notifSocket, wikiSocket].forEach((socket) => socket.disconnect());
+  [boardSocket, presenceSocket, notificationSocket, wikiSocket].forEach((socket) => socket.disconnect());
 };

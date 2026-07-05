@@ -4,8 +4,10 @@ import { deleteNotification, listNotifications, markAllRead, markRead } from '..
 
 const router = Router();
 router.use(auth);
+
 router.get('/', listNotifications);
 router.put('/read-all', markAllRead);
 router.put('/:notifId/read', markRead);
 router.delete('/:notifId', deleteNotification);
+
 export default router;
