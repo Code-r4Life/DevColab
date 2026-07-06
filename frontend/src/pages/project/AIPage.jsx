@@ -5,12 +5,14 @@ import { Avatar, Button } from "../../components/ui";
 import { cn } from "../../assets/utils";
 import { Send, Zap, Code, Bug, Cpu, Eye, ShieldCheck } from "lucide-react";
 import { useAuth } from "../../context/useAuth";
+import { useWorkspace } from "../../context/useWorkspace";
 import api, { unwrap } from "../../lib/api";
 import MarkdownRenderer from "../../components/markdown/MarkdownRenderer";
 
 const AIPage = () => {
   const { id: projectId } = useParams();
   const { user } = useAuth();
+  const { projects } = useWorkspace();
   const [projectName, setProjectName] = useState('');
   const [prompt, setPrompt] = useState("");
   const [messages, setMessages] = useState([{ role: "ai", text: "Hello! I'm your DevCollab AI Assistant. How can I help you today?" }]);
@@ -94,8 +96,13 @@ const AIPage = () => {
 
   useEffect(() => {
     if (!projectId) return;
+    const match = projects?.find(p => (p._id || p.id) === projectId);
+    if (match) {
+      setProjectName(match.name);
+      return;
+    }
     api.get(`/projects/${projectId}`).then((res) => setProjectName(unwrap(res).project?.name || '')).catch(() => {});
-  }, [projectId]);
+  }, [projectId, projects]);
 
   return (
     <PageShell breadcrumbs={[{ label: 'Projects', to: '/projects' }, { label: projectName || 'Project', to: `/project/${projectId}/board` }, { label: 'AI Assistant' }]}>

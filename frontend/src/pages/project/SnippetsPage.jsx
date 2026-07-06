@@ -6,6 +6,7 @@ import { cn } from '../../assets/utils';
 import { Search, Plus, Copy, Trash2, FileCode, Check } from 'lucide-react';
 import api, { unwrap } from '../../lib/api';
 import { useAuth } from '../../context/useAuth';
+import { useWorkspace } from '../../context/useWorkspace';
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -33,6 +34,8 @@ hljs.registerLanguage('css', css);
 const SnippetsPage = () => {
   const { id: projectId } = useParams();
   const { user } = useAuth();
+  const { projects, currentWorkspace } = useWorkspace();
+  const workspaceId = currentWorkspace?._id || currentWorkspace?.id;
   const [snippets, setSnippets] = useState([]);
   const [projectName, setProjectName] = useState('');
   const [selectedId, setSelectedId] = useState(null);
@@ -46,7 +49,7 @@ const SnippetsPage = () => {
   const codeRef = useRef(null);
 
   const load = async () => {
-    const data = unwrap(await api.get(`/snippets/project/${projectId}`));
+    const data = unwrap(await api.get(`/snippets/project/${projectId}?workspaceId=${workspaceId}`));
     setSnippets(data.snippets || []);
     setSelectedId((prev) => prev || data.snippets?.[0]?._id || null);
   };
@@ -55,8 +58,13 @@ const SnippetsPage = () => {
 
   useEffect(() => {
     if (!projectId) return;
+    const match = projects?.find(p => (p._id || p.id) === projectId);
+    if (match) {
+      setProjectName(match.name);
+      return;
+    }
     api.get(`/projects/${projectId}`).then((res) => setProjectName(unwrap(res).project?.name || '')).catch(() => {});
-  }, [projectId]);
+  }, [projectId, projects]);
 
   useEffect(() => {
     if (!codeRef.current || !selectedSnippet) return;
@@ -115,9 +123,10 @@ const SnippetsPage = () => {
     setSaving(true);
     setSaveError('');
     try {
-      const data = unwrap(await api.post('/snippets', {
+      const data = unwrap(await api.post(`/snippets?workspaceId=${workspaceId}`, {
         ...draft,
         projectId,
+        workspaceId,
         tags: draft.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
       }));
       setDraft({ title: '', language: 'javascript', code: '', description: '', tags: '' });

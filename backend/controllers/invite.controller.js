@@ -135,3 +135,10 @@ export const listPendingInvites = asyncHandler(async (req, res) => {
   const invites = await Invite.find({ workspaceId: req.params.workspaceId, accepted: false }).sort({ expiresAt: 1 }).populate('invitedBy', 'name avatar email');
   return ok(res, { invites });
 });
+
+export const deleteInvite = asyncHandler(async (req, res) => {
+  const invite = await Invite.findById(req.params.id);
+  if (!invite) return fail(res, 'Invitation not found', 404);
+  await Invite.findByIdAndDelete(req.params.id);
+  return ok(res, { message: 'Invitation deleted successfully' });
+});

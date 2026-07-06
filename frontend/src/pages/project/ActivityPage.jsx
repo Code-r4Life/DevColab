@@ -11,7 +11,7 @@ import { timeAgo } from "../../lib/format";
 
 const ActivityPage = () => {
   const { id: projectId } = useParams();
-  const { currentWorkspace } = useWorkspace();
+  const { currentWorkspace, projects } = useWorkspace();
   const [activities, setActivities] = useState([]);
   const [projectName, setProjectName] = useState('');
   const workspaceId = currentWorkspace?._id || currentWorkspace?.id;
@@ -23,8 +23,13 @@ const ActivityPage = () => {
 
   useEffect(() => {
     if (!projectId) return;
+    const match = projects?.find(p => (p._id || p.id) === projectId);
+    if (match) {
+      setProjectName(match.name);
+      return;
+    }
     api.get(`/projects/${projectId}`).then((res) => setProjectName(unwrap(res).project?.name || '')).catch(() => {});
-  }, [projectId]);
+  }, [projectId, projects]);
 
   useEffect(() => {
     boardSocket.connect();
