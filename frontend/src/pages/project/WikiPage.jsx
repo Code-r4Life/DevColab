@@ -12,6 +12,7 @@ import api, { unwrap } from '../../lib/api';
 import { useAuth } from '../../context/useAuth';
 import { timeAgo } from '../../lib/format';
 import { wikiSocket } from '../../lib/socket';
+import { useWorkspace } from '../../context/useWorkspace';
 
 // TipTap imports
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -57,12 +58,17 @@ const FontSize = TextStyle.extend({
 const WikiPage = () => {
   const { id: projectId } = useParams();
   const { user } = useAuth();
+  const { projects } = useWorkspace();
   const [projectName, setProjectName] = useState('');
   const [pages, setPages] = useState([]);
   const [activeCollaborators, setActiveCollaborators] = useState([]);
   const [remoteCursors, setRemoteCursors] = useState({});
   const [selectedPageId, setSelectedPageId] = useState(null);
   const [selectedPage, setSelectedPage] = useState(null);
+  const selectedPageIdRef = useRef(null);
+  useEffect(() => {
+    selectedPageIdRef.current = selectedPageId;
+  }, [selectedPageId]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [draftTitle, setDraftTitle] = useState('');
   const [saveState, setSaveState] = useState('Saved');
@@ -163,18 +169,18 @@ const WikiPage = () => {
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
       setPreviewHtml(html);
-      if (selectedPageId) {
+      if (editor.isFocused && selectedPageIdRef.current) {
         wikiSocket.emit('wiki:content-change', {
-          pageId: selectedPageId,
+          pageId: selectedPageIdRef.current,
           content: html
         });
       }
     },
     onSelectionUpdate: ({ editor }) => {
       const { from, to } = editor.state.selection;
-      if (selectedPageId) {
+      if (editor.isFocused && selectedPageIdRef.current) {
         wikiSocket.emit('wiki:cursor-move', {
-          pageId: selectedPageId,
+          pageId: selectedPageIdRef.current,
           cursor: from,
           selectionRange: { from, to }
         });
@@ -214,10 +220,18 @@ const WikiPage = () => {
 
   useEffect(() => {
     if (!projectId) return;
+
+    // Try finding the project name in our loaded projects context first
+    const match = projects?.find(p => (p._id || p.id) === projectId);
+    if (match) {
+      setProjectName(match.name);
+      return;
+    }
+
     api.get(`/projects/${projectId}`)
       .then((res) => setProjectName(unwrap(res).project?.name || ''))
       .catch(() => {});
-  }, [projectId]);
+  }, [projectId, projects]);
 
   // Real-time sockets subscription
   useEffect(() => {
@@ -564,6 +578,40 @@ const WikiPage = () => {
     setShowHistory(false);
   };
 
+  const getColors = (userId) => {
+    const colors = [
+      '#a855f7', // purple
+      '#ec4899', // pink
+      '#3b82f6', // blue
+      '#10b981', // green
+      '#f59e0b', // amber
+      '#ef4444', // red
+    ];
+    let hash = 0;
+    for (let i = 0; i < (userId || '').length; i++) {
+      hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  const getCursorStyle = (pos) => {
+    if (!editor || editor.isDestroyed || !editor.view) return null;
+    try {
+      const docLength = editor.state.doc.content.size;
+      const safePos = Math.max(0, Math.min(pos, docLength));
+      const coords = editor.view.coordsAtPos(safePos);
+      const dom = editor.view.dom;
+      const rect = dom.getBoundingClientRect();
+      return {
+        top: `${coords.top - rect.top + dom.scrollTop}px`,
+        left: `${coords.left - rect.left}px`,
+        height: `${coords.bottom - coords.top || 20}px`
+      };
+    } catch (e) {
+      return null;
+    }
+  };
+
   return (
     <PageShell breadcrumbs={[{ label: 'Projects', to: '/projects' }, { label: projectName || 'Project', to: `/project/${projectId}/board` }, { label: 'Wiki' }]}>
       <div className="h-full flex gap-0 -mx-6 -my-6 overflow-hidden relative">
@@ -885,7 +933,7 @@ const WikiPage = () => {
               <div className="space-y-8">
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <Avatar src={selectedPage.createdBy?.avatar || user?.avatar} size="xs" />
+                    <Avatar src={selectedPage.updatedBy?.avatar || selectedPage.createdBy?.avatar || user?.avatar} name={selectedPage.updatedBy?.name || selectedPage.createdBy?.name || user?.name} size="xs" />
                     <span>Last edited {timeAgo(selectedPage.updatedAt)}</span>
                   </div>
                   <input 
@@ -913,8 +961,36 @@ const WikiPage = () => {
                       <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">TipTap Canvas</span>
                     </div>
                     {/* Enlargement resize handle via overflow-auto & resize-y CSS */}
-                    <div className="input-field min-h-[420px] border rounded-lg focus-within:ring-2 focus-within:ring-primary/50 overflow-auto resize-y">
+                    <div className="input-field min-h-[420px] border rounded-lg focus-within:ring-2 focus-within:ring-primary/50 overflow-auto resize-y relative">
                       <EditorContent editor={editor} />
+                      
+                      {/* Floating Carets for Remote Collaborators */}
+                      {Object.entries(remoteCursors).map(([socketId, rc]) => {
+                        const style = getCursorStyle(rc.cursor);
+                        if (!style) return null;
+                        const color = getColors(rc.userId);
+                        return (
+                          <div 
+                            key={socketId} 
+                            style={{ 
+                              ...style, 
+                              position: 'absolute',
+                              width: '2px', 
+                              backgroundColor: color, 
+                              pointerEvents: 'none',
+                              zIndex: 10,
+                              transition: 'all 0.1s ease-out'
+                            }}
+                          >
+                            <div 
+                              style={{ backgroundColor: color }}
+                              className="absolute bottom-full left-0 text-white text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap shadow-md -translate-x-1/2 -translate-y-1 z-20 pointer-events-none"
+                            >
+                              {rc.userName}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                     {Object.values(remoteCursors).length > 0 && (
                       <div className="flex flex-wrap gap-2 text-xs text-gray-400 mt-2 bg-dark-bg/30 p-2 rounded-lg border border-white/5">

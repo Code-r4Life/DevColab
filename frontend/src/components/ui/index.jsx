@@ -49,10 +49,12 @@ export const Avatar = ({ src, name, size = 'md', className }) => {
     lg: 'w-16 h-16',
   };
 
+  const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=7c3aed&color=fff`;
+
   return (
     <img
-      src={src}
-      alt={name}
+      src={src || fallbackUrl}
+      alt={name || 'Avatar'}
       className={cn('rounded-full bg-dark-border object-cover border-2 dark:border-dark-border light:border-light-border', sizes[size], className)}
     />
   );

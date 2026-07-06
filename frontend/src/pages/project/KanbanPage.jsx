@@ -17,7 +17,7 @@ const emptyGrouped = () => ({ todo: [], in_progress: [], in_review: [], done: []
 const KanbanPage = () => {
   const { id: projectId } = useParams();
   const { user } = useAuth();
-  const { currentWorkspace } = useWorkspace(); 
+  const { currentWorkspace, projects } = useWorkspace(); 
   const workspaceId = currentWorkspace?._id || currentWorkspace?.id; 
   const [grouped, setGrouped] = useState(emptyGrouped);
   const [projectName, setProjectName] = useState('');
@@ -78,13 +78,17 @@ const KanbanPage = () => {
   }, [projectId]);
 
   useEffect(() => {
+    const match = projects?.find(p => (p._id || p.id) === projectId);
+    if (match) {
+      setProjectName(match.name);
+    }
     const loadProject = async () => {
       const data = unwrap(await api.get(`/projects/${projectId}`));
       setProjectName(data.project?.name || '');
       setFetchedWorkspaceId(data.project?.workspaceId);
     };
     loadProject().catch(() => {});
-  }, [projectId]);
+  }, [projectId, projects]);
 
   useEffect(() => {
     boardSocket.connect();
