@@ -25,6 +25,7 @@ const Login = () => {
   const [resetError, setResetError] = useState("");
   const [resetMessage, setResetMessage] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
+  const API_BASE = import.meta.env.VITE_SOCKET_URL;
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -104,7 +105,7 @@ const Login = () => {
   };
 
   const handleSocialLogin = (provider) => {
-    window.location.href = `http://localhost:5000/api/auth/${provider}`;
+    window.location.href = `${API_BASE}/api/auth/${provider}`;
   };
 
   return (
