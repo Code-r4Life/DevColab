@@ -41,18 +41,23 @@ const __dirname = path.dirname(__filename);
 const CLIENT_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const PORT = process.env.PORT || 5000;
 
+const corsOrigin = (origin, callback) => {
+  // Allow all origins to enable multi-device / teammate testing on LAN
+  callback(null, true);
+};
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" } 
 }));
 
 const io = new Server(httpServer, {
-  cors: { origin: CLIENT_URL, credentials: true },
+  cors: { origin: corsOrigin, credentials: true },
 });
 setIO(io);
 registerSockets(io);
 
 app.use(cors({
-  origin: CLIENT_URL,
+  origin: corsOrigin,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']

@@ -21,9 +21,12 @@ const registerWikiSocket = (io) => {
   const namespace = io.of('/wiki');
 
   namespace.on('connection', (socket) => {
+    console.log(`🟢 Client connected to wiki namespace: ${socket.id}`);
+
     socket.on('join_wiki', ({ pageId, userId, userName, avatar }) => {
       if (!pageId || !userId) return;
 
+      console.log(`👤 User ${userName} (${userId}) joined wiki page room: wiki:page:${pageId}`);
       socket.join(`wiki:page:${pageId}`);
 
       if (!activeUsersByPage.has(pageId)) {
@@ -43,6 +46,7 @@ const registerWikiSocket = (io) => {
     socket.on('leave_wiki', ({ pageId }) => {
       if (!pageId) return;
 
+      console.log(`👤 Client ${socket.id} leaving wiki page room: wiki:page:${pageId}`);
       socket.leave(`wiki:page:${pageId}`);
 
       const users = activeUsersByPage.get(pageId);
@@ -58,6 +62,7 @@ const registerWikiSocket = (io) => {
 
     socket.on('wiki:content-change', ({ pageId, content, title }) => {
       if (!pageId) return;
+      console.log(`📝 Content change received from client ${socket.id} for page ${pageId}`);
       socket.to(`wiki:page:${pageId}`).emit('wiki:content-change', {
         pageId,
         content,
@@ -83,6 +88,7 @@ const registerWikiSocket = (io) => {
     });
 
     socket.on('disconnect', () => {
+      console.log(`🔴 Client disconnected from wiki namespace: ${socket.id}`);
       const affectedPages = removeSocketFromAllPages(socket.id);
       affectedPages.forEach((pageId) => {
         namespace.to(`wiki:page:${pageId}`).emit('wiki:users-update', listActiveUsers(pageId));

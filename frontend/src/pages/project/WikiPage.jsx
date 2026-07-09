@@ -248,12 +248,30 @@ const WikiPage = () => {
       avatar: user.avatar
     });
 
+    const getShortId = (id) => {
+      if (!id) return '';
+      return id.includes('#') ? id.split('#')[1] : id;
+    };
+
     const handleUsersUpdate = (users) => {
-      setActiveCollaborators(users.filter(u => u.socketId !== wikiSocket.id));
+      const activeList = users.filter(u => getShortId(u.socketId) !== getShortId(wikiSocket.id));
+      setActiveCollaborators(activeList);
+      
+      // Clean up remote cursors for users who are no longer active
+      const activeSocketIds = new Set(activeList.map(u => u.socketId));
+      setRemoteCursors(prev => {
+        const cleaned = {};
+        Object.entries(prev).forEach(([sid, rc]) => {
+          if (activeSocketIds.has(sid)) {
+            cleaned[sid] = rc;
+          }
+        });
+        return cleaned;
+      });
     };
 
     const handleContentChange = ({ content, title, senderSocketId }) => {
-      if (senderSocketId === wikiSocket.id) return;
+      if (getShortId(senderSocketId) === getShortId(wikiSocket.id)) return;
       if (title !== undefined) {
         setSelectedPage(prev => prev ? { ...prev, title } : prev);
       }
@@ -271,6 +289,8 @@ const WikiPage = () => {
     };
 
     const handleCursorChange = ({ socketId, userId, userName, avatar, cursor, selectionRange }) => {
+      // Don't show our own cursor
+      if (getShortId(socketId) === getShortId(wikiSocket.id)) return;
       setRemoteCursors(prev => ({
         ...prev,
         [socketId]: { userId, userName, avatar, cursor, selectionRange, updatedAt: Date.now() }
@@ -876,7 +896,7 @@ const WikiPage = () => {
                 <div className="flex items-center -space-x-1.5 mr-2">
                   {activeCollaborators.map((c) => (
                     <div key={c.socketId} className="relative group cursor-help" title={`${c.userName} is active on this page`}>
-                      <Avatar src={c.avatar} size="xs" className="border border-dark-bg hover:scale-110 transition-transform" />
+                      <Avatar src={c.avatar} name={c.userName} size="xs" className="border border-dark-bg hover:scale-110 transition-transform" />
                       <span className="absolute bottom-0 right-0 w-1.5 h-1.5 bg-green-500 rounded-full border border-dark-bg" />
                     </div>
                   ))}
@@ -997,7 +1017,7 @@ const WikiPage = () => {
                         <span className="font-semibold text-primary">Active Cursors:</span>
                         {Object.values(remoteCursors).map((rc, idx) => (
                           <div key={idx} className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded border border-white/10">
-                            <Avatar src={rc.avatar} size="xs" />
+                            <Avatar src={rc.avatar} name={rc.userName} size="xs" />
                             <span>{rc.userName} is editing (pos {rc.cursor})</span>
                           </div>
                         ))}
