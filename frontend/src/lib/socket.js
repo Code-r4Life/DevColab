@@ -17,12 +17,10 @@ const withAuth = () => ({
   auth: { token: getSocketToken() }, 
 });
 
-// Connected via clean namespaces
 export const boardSocket = io(`${SOCKET_URL}/board`, withAuth());
 export const presenceSocket = io(`${SOCKET_URL}/presence`, withAuth());
 export const wikiSocket = io(`${SOCKET_URL}/wiki`, withAuth());
 
-// UPDATED: Connecting directly to the /notifications namespace cleanly
 export const notificationSocket = io(`${SOCKET_URL}/notifications`, withAuth());
 
 export const refreshSocketAuth = () => {

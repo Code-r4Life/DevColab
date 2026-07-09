@@ -1,7 +1,6 @@
 let notificationNamespace;
 
 export const initNotificationSocket = (io) => {
-  // Create a namespace for notifications instead of a brand new server
   notificationNamespace = io.of('/notifications');
 
   notificationNamespace.on('connection', (socket) => {
@@ -21,7 +20,6 @@ export const initNotificationSocket = (io) => {
   return notificationNamespace;
 };
 
-// Export a helper to get the namespace loop from other files
 export const getNotificationIo = () => notificationNamespace;
 
 export default initNotificationSocket;
