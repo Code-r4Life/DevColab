@@ -309,11 +309,11 @@ export const requestPasswordReset = asyncHandler(async (req, res) => {
 
   try {
      console.log("Sending Email");
-     await sendResetEmail(user.email,otp);
+     await sendResetEmail(user.email, otp);
      console.log("Email Sent Successfully");
   } catch (error) {
     console.error("EMAIL ERROR");
-    console.error(err);
+    console.error(error);
 
     user.resetOtpHash = '';
     user.resetOtpExpires = null;
