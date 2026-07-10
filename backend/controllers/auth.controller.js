@@ -41,8 +41,14 @@ const createEmailTransporter = () => {
     throw error;
   }
   return nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    family: 4,
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+    },
   });
 };
 
@@ -272,12 +278,12 @@ const sendResetEmail = async (email, otp) => {
         </div>
       `,
     });
-  } catch {
+  } catch (error) {
     console.error("SENDMAIL FAILED");
 
-    console.error(err);
+    console.error(error);
 
-    throw err;
+    throw error;
   }
 };
 
