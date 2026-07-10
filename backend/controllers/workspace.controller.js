@@ -25,7 +25,7 @@ export const createWorkspace = asyncHandler(async (req, res) => {
     slug,
     avatar: req.body.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=7C3AED&color=fff`,
     ownerId: req.user.id,
-    members: [{ userId: req.user.id, role: 'owner' }],
+    members: [{ userId: req.user.id, role: 'Owner' }],
   });
   await User.findByIdAndUpdate(req.user.id, { $addToSet: { workspaces: workspace._id } });
   await logActivity({ userId: req.user.id, workspaceId: workspace._id, action: 'member.joined', entityType: 'member', entityId: req.user.id, entityName: req.user.name });
@@ -79,11 +79,12 @@ export const listMembers = asyncHandler(async (req, res) => {
 
 export const changeMemberRole = asyncHandler(async (req, res) => {
   const { role } = req.body;
-  if (!['admin', 'member', 'viewer'].includes(role)) return fail(res, 'Invalid role', 422);
+  const validRoles = ['Owner', 'Admin', 'Contributor', 'Member', 'Viewer'];
+  if (!validRoles.includes(role)) return fail(res, 'Invalid role', 422);
   const workspace = await Workspace.findById(req.params.workspaceId);
   const member = workspace?.members.find((item) => item.userId.toString() === req.params.userId);
   if (!member) return fail(res, 'Member not found', 404);
-  if (member.role === 'owner') return fail(res, 'Owner role cannot be changed', 403);
+  if (member.role === 'Owner') return fail(res, 'Owner role cannot be changed', 403);
   member.role = role;
   await workspace.save();
   await logActivity({ userId: req.user.id, workspaceId: workspace._id, action: 'member.role_changed', entityType: 'member', entityId: req.params.userId, entityName: role });
@@ -94,7 +95,7 @@ export const removeMember = asyncHandler(async (req, res) => {
   const workspace = await Workspace.findById(req.params.workspaceId);
   const member = workspace?.members.find((item) => item.userId.toString() === req.params.userId);
   if (!member) return fail(res, 'Member not found', 404);
-  if (member.role === 'owner') return fail(res, 'Owner cannot be removed', 403);
+  if (member.role === 'Owner') return fail(res, 'Owner cannot be removed', 403);
   workspace.members = workspace.members.filter((item) => item.userId.toString() !== req.params.userId);
   await workspace.save();
   await User.findByIdAndUpdate(req.params.userId, { $pull: { workspaces: workspace._id } });

@@ -1,14 +1,25 @@
-export const emitNotification = (io, userId, notifObject) => {
-  io.of('/notifications').to(`user:${userId}`).emit('notification:new', notifObject);
-};
+let notificationNamespace;
 
-const registerNotificationSocket = (io) => {
-  const namespace = io.of('/notifications');
-  namespace.on('connection', (socket) => {
-    socket.on('subscribe', ({ userId }) => {
-      if (userId) socket.join(`user:${userId}`);
+export const initNotificationSocket = (io) => {
+  notificationNamespace = io.of('/notifications');
+
+  notificationNamespace.on('connection', (socket) => {
+    console.log(`🟢 Client connected to notification namespace: ${socket.id}`);
+
+    socket.on('join_notifications', (userId) => {
+      const roomName = `user_${userId}`;
+      socket.join(roomName);
+      console.log(`👤 User ${userId} successfully joined room: ${roomName}`);
+    });
+
+    socket.on('disconnect', () => {
+      console.log('🔴 Client disconnected from notification namespace');
     });
   });
+
+  return notificationNamespace;
 };
 
-export default registerNotificationSocket;
+export const getNotificationIo = () => notificationNamespace;
+
+export default initNotificationSocket;

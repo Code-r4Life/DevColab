@@ -45,7 +45,7 @@ const NewProjectPage = () => {
         <form onSubmit={handleSubmit} className="surface p-6 rounded-2xl space-y-5">
           <Input
             label="Project Name"
-            placeholder="DevColab Mobile"
+            placeholder="DevCollab Mobile"
             value={name}
             onChange={(event) => setName(event.target.value)}
           />

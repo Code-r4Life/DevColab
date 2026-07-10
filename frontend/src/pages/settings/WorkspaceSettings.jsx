@@ -1,11 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageShell } from '../../components/layout/PageShell';
-import { Button, Input, Avatar, Badge } from '../../components/ui';
+import { Button, Input, Avatar, Badge, Modal } from '../../components/ui';
 import { cn } from '../../assets/utils';
 import { useWorkspace } from '../../context/useWorkspace';
 import { useAuth } from '../../context/useAuth';
 import api, { unwrap } from '../../lib/api';
+import ActivityFeed from "../../components/ActivityFeed";
 import {
   Settings,
   Users,
@@ -15,9 +16,10 @@ import {
   Send,
   RefreshCw,
   Upload,
+  Activity 
 } from 'lucide-react';
 
-const ROLES = ['member', 'admin', 'viewer'];
+const ROLES = ['Owner', 'Admin', 'Contributor', 'Member', 'Viewer'];
 
 const WorkspaceSettings = () => {
   const navigate = useNavigate();
@@ -34,9 +36,32 @@ const WorkspaceSettings = () => {
 
   // invite state
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('member');
+  const [inviteRole, setInviteRole] = useState('Member');
   const [inviting, setInviting] = useState(false);
   const [inviteMsg, setInviteMsg] = useState({ text: '', type: '' });
+  const [pendingInvites, setPendingInvites] = useState([]);
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null
+  });
+
+  const showConfirm = (title, message, onConfirm) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm: () => {
+        onConfirm();
+        closeConfirm();
+      }
+    });
+  };
+
+  const closeConfirm = () => {
+    setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+  };
 
   // general state
   const [saving, setSaving] = useState(false);
@@ -47,12 +72,14 @@ const WorkspaceSettings = () => {
 
   const workspaceId = currentWorkspace?._id || currentWorkspace?.id;
   const isOwner = currentWorkspace?.members?.find(
-    (m) => (m.userId?._id || m.userId) === (user?._id || user?.id) && m.role === 'owner'
+    (m) => (m.userId?._id || m.userId) === (user?._id || user?.id) && m.role === 'Owner'
   );
 
+  // <--- CHANGED 2: Added the Activity tab here
   const tabs = [
     { id: 'general', label: 'General', icon: Settings },
     { id: 'members', label: 'Members', icon: Users },
+    { id: 'activity', label: 'Activity Feed', icon: Activity },
     { id: 'security', label: 'Security', icon: Shield },
   ];
 
@@ -63,9 +90,31 @@ const WorkspaceSettings = () => {
       const data = unwrap(await api.get(`/workspaces/${workspaceId}/members`));
       setMembers(data.members || []);
     } catch {
-      // silently fail
+      
     }
   };
+
+  const loadPendingInvites = async () => {
+    if (!workspaceId) return;
+    try {
+      const data = unwrap(await api.get(`/invites/workspace/${workspaceId}`));
+      setPendingInvites(data.invites || []);
+    } catch (err) {
+      console.error("Failed to load pending invites:", err);
+    }
+  };
+
+  const handleRefreshMembers = () => {
+    loadMembers();
+    loadPendingInvites();
+  };
+
+  useEffect(() => {
+    if (activeTab === 'members') {
+      loadMembers();
+      loadPendingInvites();
+    }
+  }, [activeTab, workspaceId]);
 
   // ── Save workspace name / slug ────────────────────────────────
   const saveWorkspace = async () => {
@@ -146,6 +195,7 @@ const WorkspaceSettings = () => {
       });
       setInviteMsg({ text: `Invite sent to ${inviteEmail} ✓`, type: 'success' });
       setInviteEmail('');
+      loadPendingInvites(); // Refresh pending list immediately
     } catch (err) {
       setInviteMsg({
         text: err?.response?.data?.message || 'Failed to send invite.',
@@ -157,17 +207,38 @@ const WorkspaceSettings = () => {
     }
   };
 
+  // ── Revoke invitation ──────────────────────────────────────────
+  const handleCancelInvite = (inviteId) => {
+    showConfirm(
+      'Revoke Invitation',
+      'Are you sure you want to revoke and delete this pending invitation? This action cannot be undone.',
+      async () => {
+        try {
+          await api.delete(`/invites/${inviteId}?workspaceId=${workspaceId}`);
+          setPendingInvites((prev) => prev.filter((inv) => (inv._id || inv.id) !== inviteId));
+        } catch (err) {
+          alert(err?.response?.data?.message || 'Failed to revoke invitation.');
+        }
+      }
+    );
+  };
+
   // ── Remove member ─────────────────────────────────────────────
-  const removeMember = async (userId) => {
-    if (!window.confirm('Remove this member from the workspace?')) return;
-    try {
-      await api.delete(`/workspaces/${workspaceId}/members/${userId}`);
-      setMembers((prev) =>
-        prev.filter((m) => (m.userId?._id || m.userId) !== userId)
-      );
-    } catch (err) {
-      alert(err?.response?.data?.message || 'Failed to remove member.');
-    }
+  const removeMember = (userId) => {
+    showConfirm(
+      'Remove Member',
+      'Are you sure you want to remove this member from the workspace?',
+      async () => {
+        try {
+          await api.delete(`/workspaces/${workspaceId}/members/${userId}`);
+          setMembers((prev) =>
+            prev.filter((m) => (m.userId?._id || m.userId) !== userId)
+          );
+        } catch (err) {
+          alert(err?.response?.data?.message || 'Failed to remove member.');
+        }
+      }
+    );
   };
 
   // ── Change member role ────────────────────────────────────────
@@ -310,7 +381,7 @@ const WorkspaceSettings = () => {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold">Team Members</h2>
-                <Button variant="secondary" size="sm" className="gap-2" onClick={loadMembers}>
+                <Button variant="secondary" size="sm" className="gap-2" onClick={handleRefreshMembers}>
                   <RefreshCw size={14} /> Refresh
                 </Button>
               </div>
@@ -354,6 +425,54 @@ const WorkspaceSettings = () => {
                 )}
               </div>
 
+              {/* Pending Invites List */}
+              {pendingInvites.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-base font-bold flex items-center gap-2">
+                    <Mail size={16} className="text-gray-400" />
+                    Pending Invitations
+                  </h3>
+                  <div className="surface rounded-2xl border border-dark-border overflow-hidden">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-black/20 dark:bg-white/5 border-b border-dark-border">
+                        <tr>
+                          <th className="px-6 py-3 font-bold uppercase tracking-wider text-[10px] text-gray-500">Email</th>
+                          <th className="px-6 py-3 font-bold uppercase tracking-wider text-[10px] text-gray-500">Role</th>
+                          <th className="px-6 py-3 font-bold uppercase tracking-wider text-[10px] text-gray-500">Invited By</th>
+                          <th className="px-6 py-3 font-bold uppercase tracking-wider text-[10px] text-gray-500">Expires</th>
+                          <th className="px-6 py-3 font-bold uppercase tracking-wider text-[10px] text-gray-500"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-dark-border">
+                        {pendingInvites.map((invite) => (
+                          <tr key={invite._id || invite.id} className="hover:bg-white/5 transition-colors">
+                            <td className="px-6 py-4 font-medium text-gray-200">{invite.email}</td>
+                            <td className="px-6 py-4">
+                              <Badge variant="default" className="capitalize">{invite.role}</Badge>
+                            </td>
+                            <td className="px-6 py-4 text-gray-400">
+                              {invite.invitedBy?.name || 'System'}
+                            </td>
+                            <td className="px-6 py-4 text-gray-500 text-xs">
+                              {new Date(invite.expiresAt).toLocaleDateString()}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <button
+                                onClick={() => handleCancelInvite(invite._id || invite.id)}
+                                className="text-gray-500 hover:text-danger p-1 rounded transition-colors"
+                                title="Revoke invitation"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
               {/* Members table */}
               <div className="surface rounded-2xl border border-dark-border overflow-hidden">
                 <table className="w-full text-left text-sm">
@@ -388,19 +507,19 @@ const WorkspaceSettings = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
-                            {member.role === 'owner' || isSelf ? (
-                              <Badge variant={member.role === 'owner' ? 'primary' : 'default'} className="capitalize">
+                           <td className="px-6 py-4">
+                            {member.role === 'Owner' || isSelf ? (
+                              <Badge variant={member.role === 'Owner' ? 'primary' : 'default'} className="capitalize">
                                 {member.role}
                               </Badge>
                             ) : (
                               <select
-                                className="input-field py-1 text-xs w-28"
+                                className="input-field py-1 text-xs w-32"
                                 value={member.role}
                                 onChange={(e) => changeRole(uid, e.target.value)}
                               >
                                 {ROLES.map((r) => (
-                                  <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
+                                  <option key={r} value={r}>{r}</option>
                                 ))}
                               </select>
                             )}
@@ -409,7 +528,7 @@ const WorkspaceSettings = () => {
                             {member.joinedAt ? new Date(member.joinedAt).toLocaleDateString() : 'Now'}
                           </td>
                           <td className="px-6 py-4 text-right">
-                            {!isSelf && member.role !== 'owner' && (
+                            {!isSelf && member.role !== 'Owner' && (
                               <button
                                 className="text-gray-500 hover:text-danger transition-colors"
                                 onClick={() => removeMember(uid)}
@@ -425,6 +544,19 @@ const WorkspaceSettings = () => {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {/* <--- CHANGED 3: Added the Activity Feed Render Block here */}
+          {/* ── ACTIVITY FEED ── */}
+          {activeTab === 'activity' && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold">Workspace Activity</h2>
+              <p className="text-sm text-gray-500">
+                A complete history of everything happening in {currentWorkspace?.name}.
+              </p>
+              
+              <ActivityFeed workspaceId={workspaceId} />
             </div>
           )}
 
@@ -479,6 +611,27 @@ const WorkspaceSettings = () => {
 
         </div>
       </div>
+
+      {/* Reusable Confirmation Modal */}
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={closeConfirm}
+        title={confirmModal.title}
+        footer={
+          <div className="flex justify-end gap-3 mt-4">
+            <Button type="button" variant="secondary" onClick={closeConfirm}>
+              Cancel
+            </Button>
+            <Button type="button" variant="danger" onClick={confirmModal.onConfirm}>
+              Delete
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-gray-300">
+          {confirmModal.message}
+        </p>
+      </Modal>
     </PageShell>
   );
 };

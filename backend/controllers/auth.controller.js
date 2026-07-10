@@ -68,6 +68,7 @@ const completeRegister = async (pendingSignup, res) => {
     name: pendingSignup.name,
     email: pendingSignup.email,
     passwordHash: pendingSignup.hashedPassword,
+    role: 'User', 
     avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(pendingSignup.name)}`,
   });
 

@@ -5,15 +5,17 @@ import { Avatar, Button } from "../../components/ui";
 import { cn } from "../../assets/utils";
 import { Send, Zap, Code, Bug, Cpu, Eye, ShieldCheck } from "lucide-react";
 import { useAuth } from "../../context/useAuth";
+import { useWorkspace } from "../../context/useWorkspace";
 import api, { unwrap } from "../../lib/api";
 import MarkdownRenderer from "../../components/markdown/MarkdownRenderer";
 
 const AIPage = () => {
   const { id: projectId } = useParams();
   const { user } = useAuth();
+  const { projects } = useWorkspace();
   const [projectName, setProjectName] = useState('');
   const [prompt, setPrompt] = useState("");
-  const [messages, setMessages] = useState([{ role: "ai", text: "Hello! I'm your DevColab AI Assistant. How can I help you today?" }]);
+  const [messages, setMessages] = useState([{ role: "ai", text: "Hello! I'm your DevCollab AI Assistant. How can I help you today?" }]);
   const [reviewInput, setReviewInput] = useState("");
   const [language, setLanguage] = useState("javascript");
   const [review, setReview] = useState(null);
@@ -94,15 +96,20 @@ const AIPage = () => {
 
   useEffect(() => {
     if (!projectId) return;
+    const match = projects?.find(p => (p._id || p.id) === projectId);
+    if (match) {
+      setProjectName(match.name);
+      return;
+    }
     api.get(`/projects/${projectId}`).then((res) => setProjectName(unwrap(res).project?.name || '')).catch(() => {});
-  }, [projectId]);
+  }, [projectId, projects]);
 
-      return (
-        <PageShell breadcrumbs={[{ label: 'Projects', to: '/projects' }, { label: projectName || 'Project', to: `/project/${projectId}/board` }, { label: 'AI Assistant' }]}>
+  return (
+    <PageShell breadcrumbs={[{ label: 'Projects', to: '/projects' }, { label: projectName || 'Project', to: `/project/${projectId}/board` }, { label: 'AI Assistant' }]}>
       <div className="h-full flex gap-6 overflow-hidden">
         <div className="flex-1 flex flex-col gap-6">
           <div className="flex-1 surface rounded-2xl flex flex-col overflow-hidden border">
-            <div className="p-4 border-b dark:border-dark-border flex items-center gap-3 bg-primary/5"><div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white"><Zap size={18} /></div><div><h2 className="font-bold">DevColab AI</h2><p className="text-[10px] text-success font-bold uppercase">Online</p></div></div>
+            <div className="p-4 border-b dark:border-dark-border flex items-center gap-3 bg-primary/5"><div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white"><Zap size={18} /></div><div><h2 className="font-bold">DevCollab AI</h2><p className="text-[10px] text-success font-bold uppercase">Online</p></div></div>
             <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
               {messages.map((m, i) => (
                 <div key={i} className={cn("flex gap-4 max-w-[80%]", m.role === "user" ? "ml-auto flex-row-reverse" : "")}> 

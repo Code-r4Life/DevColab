@@ -57,7 +57,7 @@ const CreateWorkspace = () => {
       const payload = { name };
       if (logoPreview) payload.avatar = logoPreview;
       const workspace = await createWorkspace(payload);
-      await createProject({ workspaceId: workspace._id || workspace.id, name: "DevColab Platform", description: "Your first collaboration project", color: "#3B82F6" });
+      await createProject({ workspaceId: workspace._id || workspace.id, name: "DevCollab Platform", description: "Your first collaboration project", color: "#3B82F6" });
       navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.message || "Unable to create workspace");
@@ -135,7 +135,7 @@ const CreateWorkspace = () => {
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-gray-500">Workspace URL</label>
                     <div className="flex items-center gap-2">
-                        <span className="text-gray-500 text-sm whitespace-nowrap">devcolab.com/</span>
+                        <span className="text-gray-500 text-sm whitespace-nowrap">devcollab.com/</span>
                         <Input 
                             placeholder="my-workspace" 
                             className="flex-1"

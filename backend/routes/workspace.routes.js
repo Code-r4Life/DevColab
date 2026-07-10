@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import auth from '../middleware/auth.js';
-import { requireRole } from '../middleware/role.js';
+import roleCheck from '../middleware/roleCheck.js';
 import {
   changeMemberRole,
   createWorkspace,
@@ -16,10 +16,11 @@ const router = Router();
 router.use(auth);
 router.post('/', createWorkspace);
 router.get('/', listWorkspaces);
-router.get('/:workspaceId', requireRole('viewer'), getWorkspace);
-router.put('/:workspaceId', requireRole('admin'), updateWorkspace);
-router.delete('/:workspaceId', requireRole('owner'), deleteWorkspace);
-router.get('/:workspaceId/members', requireRole('viewer'), listMembers);
-router.put('/:workspaceId/members/:userId/role', requireRole('admin'), changeMemberRole);
-router.delete('/:workspaceId/members/:userId', requireRole('admin'), removeMember);
+router.get('/:workspaceId', roleCheck('Owner', 'Admin', 'Contributor', 'Member'), getWorkspace);
+router.get('/:workspaceId/members', roleCheck('Owner', 'Admin', 'Contributor', 'Member'), listMembers);
+router.put('/:workspaceId', roleCheck('Owner', 'Admin'), updateWorkspace);
+router.put('/:workspaceId/members/:userId/role', roleCheck('Owner', 'Admin'), changeMemberRole);
+router.delete('/:workspaceId/members/:userId', roleCheck('Owner', 'Admin'), removeMember);
+router.delete('/:workspaceId', roleCheck('Owner'), deleteWorkspace);
+
 export default router;

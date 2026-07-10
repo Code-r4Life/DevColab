@@ -4,6 +4,7 @@ dotenv.config();
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser'; 
+import helmet from 'helmet'; 
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer } from 'http';
@@ -16,6 +17,7 @@ import connectDB from './config/db.js';
 import Snippet from './models/Snippet.js';
 import { setIO } from './config/socket.js';
 import registerSockets from './sockets/index.js';
+
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import workspaceRoutes from './routes/workspace.routes.js';
@@ -27,25 +29,40 @@ import activityRoutes from './routes/activity.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import inviteRoutes from './routes/invite.routes.js';
 import aiRoutes from './routes/ai.routes.js';
+import roleRoutes from './routes/role.routes.js';
 import errorHandler from './middleware/errorHandler.js';
 
 const app = express();
+app.set('trust proxy', 1);
 const httpServer = createServer(app);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+
+const CLIENT_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const PORT = process.env.PORT || 5000;
 
+const corsOrigin = (origin, callback) => {
+  // Allow all origins to enable multi-device / teammate testing on LAN
+  callback(null, true);
+};
+
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" } 
+}));
+
 const io = new Server(httpServer, {
-  cors: { origin: CLIENT_URL, credentials: true },
+  cors: { origin: corsOrigin, credentials: true },
 });
 setIO(io);
 registerSockets(io);
 
 app.use(cors({
-  origin: CLIENT_URL,
-  credentials: true, 
+  origin: corsOrigin,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(cookieParser()); 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -54,7 +71,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(passport.initialize());
 
 app.get('/health', (req, res) => res.json({ success: true, message: 'DevCollab backend is healthy' }));
-app.get('/health', (req, res) => res.json({ success: true, message: 'DevColab backend is healthy' }));
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/workspaces', workspaceRoutes);
@@ -66,19 +83,19 @@ app.use('/api/activity', activityRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/invites', inviteRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/role', roleRoutes);
+
 app.use(errorHandler);
 
 connectDB()
   .then(() => {
-    httpServer.listen(PORT, () => console.log(`DevColab backend running on port ${PORT}`));
+    httpServer.listen(PORT, () => console.log(`DevCollab backend running on port ${PORT}`));
 
     Snippet.syncIndexes()
       .then(() => console.log('Snippet indexes synchronized'))
-      .catch((error) => {
-        console.error('Snippet index synchronization failed:', error.message);
-      });
+      .catch((error) => console.error('Snippet index synchronization failed:', error.message));
   })
   .catch((error) => {
-    console.error('Failed to start DevColab backend:', error.message);
+    console.error('Failed to start DevCollab backend:', error.message);
     process.exit(1);
   });
