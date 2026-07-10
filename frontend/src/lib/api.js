@@ -12,6 +12,14 @@ export const clearAuthToken = () => {
   localStorage.removeItem('devcollab_token');
 };
 
+const getApiUrl = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  const { protocol, hostname } = window.location;
+  return `${protocol}//${hostname}:5000/api`;
+};
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
   withCredentials: true, 
