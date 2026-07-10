@@ -9,7 +9,12 @@ dotenv.config();
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+<<<<<<< Updated upstream
     callbackURL: '/api/auth/google/callback'
+=======
+    callbackURL: process.env.GOOGLE_CALLBACK_URL,
+    proxy: true
+>>>>>>> Stashed changes
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
@@ -46,7 +51,7 @@ passport.use(new GoogleStrategy({
 passport.use(new GitHubStrategy({
     clientID: process.env.GITHUB_CLIENT_ID,
     clientSecret: process.env.GITHUB_CLIENT_SECRET,
-    callbackURL: '/api/auth/github/callback',
+    callbackURL: process.env.GITHUB_CALLBACK_URL,
     scope: ['user:email']
   },
   async (accessToken, refreshToken, profile, done) => {
