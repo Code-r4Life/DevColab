@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import { cn } from '../../assets/utils';
 
-export const Button = forwardRef(({ className, variant = 'primary', size = 'md', ...props }, ref) => {
+export const Button = forwardRef(({ className, variant = 'primary', size = 'md', disabled, children, ...props }, ref) => {
   const variants = {
     primary: 'btn-primary',
     secondary: 'btn-secondary',
@@ -18,9 +18,18 @@ export const Button = forwardRef(({ className, variant = 'primary', size = 'md',
   return (
     <button
       ref={ref}
-      className={cn('btn', variants[variant], sizes[size], className)}
+      disabled={disabled}
+      className={cn(
+        'btn flex justify-center items-center gap-2 transition-all duration-200',
+        variants[variant],
+        sizes[size],
+        disabled && 'opacity-50 cursor-not-allowed pointer-events-none',
+        className
+      )}
       {...props}
-    />
+    >
+      {children}
+    </button>
   );
 });
 
@@ -74,6 +83,24 @@ export const Input = forwardRef(({ className, label, error, ...props }, ref) => 
   );
 });
 
+export const Textarea = forwardRef(({ className, label, error, ...props }, ref) => {
+  return (
+    <div className="space-y-1 w-full">
+      {label && <label className="text-xs font-medium text-gray-500">{label}</label>}
+      <textarea
+        ref={ref}
+        className={cn(
+          'input-field min-h-[80px] resize-y p-3 focus:outline-none focus:ring-2 focus:ring-primary',
+          error && 'border-danger focus:ring-danger',
+          className
+        )}
+        {...props}
+      />
+      {error && <p className="text-[10px] text-danger">{error}</p>}
+    </div>
+  );
+});
+
 export const Modal = ({ isOpen, onClose, title, children, footer }) => {
   if (!isOpen) return null;
 
@@ -86,5 +113,23 @@ export const Modal = ({ isOpen, onClose, title, children, footer }) => {
         {footer && <div className="flex justify-end gap-3">{footer}</div>}
       </div>
     </div>
+  );
+};
+
+export const Spinner = ({ size = 'md', className }) => {
+  const sizes = {
+    sm: 'w-4 h-4 border-2',
+    md: 'w-6 h-6 border-2',
+    lg: 'w-8 h-8 border-3',
+  };
+
+  return (
+    <div
+      className={cn(
+        'animate-spin rounded-full border-t-transparent border-primary',
+        sizes[size],
+        className
+      )}
+    />
   );
 };

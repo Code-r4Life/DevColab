@@ -9,14 +9,12 @@ export const AuthProvider = ({ children }) => {
   const [error, setError] = useState('');
 
   const hydrate = async () => {
-    // No token check needed — cookie is sent automatically by browser
-    // Just call /auth/me and see if the cookie is valid
     try {
       const data = unwrap(await api.get('/auth/me'));
       setUser(data.user);
       refreshSocketAuth();
-    } catch {
-      // Cookie missing, expired, or invalid — not logged in
+    } catch (err) {
+    
       setUser(null);
     } finally {
       setLoading(false);
@@ -29,13 +27,9 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     setError('');
-    // Backend sets httpOnly cookie automatically in response
-    // We only get user back — no token in response body anymore
     const data = unwrap(await api.post('/auth/login', { email, password }));
     setUser(data.user);
-
-    // Store a separate token for Socket.IO (can't use httpOnly cookies)
-    // We ask the backend for a socket token separately
+    
     setSocketToken(data.socketToken || '');
     refreshSocketAuth();
     return data.user;
@@ -67,10 +61,10 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
-      // Tell backend to clear the httpOnly cookie
+    
       await api.post('/auth/logout');
     } catch {
-      // Even if request fails, clear local state
+
     }
     clearAuthToken();
     clearSocketToken();
@@ -94,7 +88,7 @@ export const AuthProvider = ({ children }) => {
       setUser,
       setError
     }}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 };

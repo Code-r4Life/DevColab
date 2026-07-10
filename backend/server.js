@@ -12,7 +12,7 @@ import { Server } from 'socket.io';
 
 import passport from 'passport';
 import './utils/passport.js'; 
-
+import chatRoutes from './routes/chat.routes.js';
 import connectDB from './config/db.js';
 import Snippet from './models/Snippet.js';
 import { setIO } from './config/socket.js';
@@ -72,6 +72,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/chat', chatRoutes);
 app.use('/api/snippets', snippetRoutes);
 app.use('/api/wiki', wikiRoutes);
 app.use('/api/activity', activityRoutes);
