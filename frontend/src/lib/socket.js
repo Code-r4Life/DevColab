@@ -20,12 +20,15 @@ const withAuth = () => ({
 export const boardSocket = io(`${SOCKET_URL}/board`, withAuth());
 export const presenceSocket = io(`${SOCKET_URL}/presence`, withAuth());
 export const wikiSocket = io(`${SOCKET_URL}/wiki`, withAuth());
-
 export const notificationSocket = io(`${SOCKET_URL}/notifications`, withAuth());
+
+// NEW: Export the chat socket using your existing auth setup
+export const chatSocket = io(`${SOCKET_URL}/chat`, withAuth());
 
 export const refreshSocketAuth = () => {
   const token = getSocketToken();
-  [boardSocket, presenceSocket, notificationSocket, wikiSocket].forEach((socket) => {
+  // Added chatSocket to the refresh loop
+  [boardSocket, presenceSocket, notificationSocket, wikiSocket, chatSocket].forEach((socket) => {
     socket.auth = { token };
     if (socket.connected) {
       socket.disconnect().connect();
@@ -34,5 +37,6 @@ export const refreshSocketAuth = () => {
 };
 
 export const disconnectSockets = () => {
-  [boardSocket, presenceSocket, notificationSocket, wikiSocket].forEach((socket) => socket.disconnect());
+  // Added chatSocket to the disconnect loop
+  [boardSocket, presenceSocket, notificationSocket, wikiSocket, chatSocket].forEach((socket) => socket.disconnect());
 };

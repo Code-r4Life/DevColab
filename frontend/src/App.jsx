@@ -22,9 +22,7 @@ import { WorkspaceProvider } from "./context/WorkspaceContext";
 import { useAuth } from "./context/useAuth";
 import { useWorkspace } from "./context/useWorkspace";
 import { GlobalErrorBoundary } from "./components/ErrorBoundary";
-
-
-
+import ChatPage from './pages/ChatPage';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -52,9 +50,11 @@ const withBoundary = (element) => <GlobalErrorBoundary>{element}</GlobalErrorBou
 const AppRoutes = () => {
   const { loading } = useAuth();
   const guarded = (element) => withBoundary(<ProtectedRoute><WorkspaceRoute>{element}</WorkspaceRoute></ProtectedRoute>);
+  
   if (loading) {
     return <div className="min-h-screen surface flex items-center justify-center text-gray-400">Loading DevCollab...</div>;
   }
+  
   return (
     <Routes>
       <Route path="/" element={withBoundary(<Landing />)} />
@@ -74,6 +74,7 @@ const AppRoutes = () => {
       <Route path="/project/:id/ai" element={guarded(<AIPage />)} />
       <Route path="/settings/workspace" element={guarded(<WorkspaceSettings />)} />
       <Route path="/settings/profile" element={guarded(<ProfileSettings />)} />
+      <Route path="/chat" element={guarded(<ChatPage />)} />
     </Routes>
   );
 };

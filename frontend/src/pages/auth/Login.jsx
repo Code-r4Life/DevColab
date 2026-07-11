@@ -25,7 +25,7 @@ const Login = () => {
   const [resetError, setResetError] = useState("");
   const [resetMessage, setResetMessage] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
-  const API_BASE = import.meta.env.VITE_SOCKET_URL;
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -105,9 +105,9 @@ const Login = () => {
   };
 
   const handleSocialLogin = (provider) => {
-    window.location.href = `${API_BASE}/api/auth/${provider}`;
+    window.location.href = `${API_URL}/auth/${provider}`;
   };
-
+  
   return (
     <div className="flex min-h-screen bg-[#070709] text-white overflow-hidden relative font-sans">
       {/* Background Grid Pattern & Glowing Pulsing Lines */}
