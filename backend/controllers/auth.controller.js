@@ -32,14 +32,23 @@ const hashOtp = (otp) => crypto.createHash('sha256').update(String(otp).trim()).
 const generateOtp = () => crypto.randomInt(100000, 1000000).toString();
 
 const createEmailTransporter = () => {
+  console.log("EMAIL_USER =", process.env.EMAIL_USER);
+  console.log("EMAIL_PASS exists =", !!process.env.EMAIL_PASS);
+
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
     const error = new Error('Email credentials are not configured');
     error.status = 503;
     throw error;
   }
   return nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    family: 4,
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+    },
   });
 };
 
@@ -230,50 +239,71 @@ export const me = asyncHandler(async (req, res) => {
 
 const sendResetEmail = async (email, otp) => {
   const transporter = createEmailTransporter();
-  await transporter.sendMail({
-    from: `"DevCollab" <${process.env.EMAIL_USER}>`,
-    to: email,
-    subject: 'DevCollab password reset code',
-    html: `
-      <div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#0a0a0b;color:#fff;border-radius:16px;">
-        <h1 style="font-size:22px;margin:0 0 12px;">Reset your DevCollab password</h1>
 
-        <p style="color:#9ca3af;margin:0 0 24px;">
-          We received a request to reset the password for your DevCollab account.
-          Use the one-time code below to continue.
-        </p>
-
-        <div style="font-size:32px;letter-spacing:8px;font-weight:800;background:#18181b;border:1px solid #27272a;border-radius:12px;padding:18px 20px;text-align:center;color:#fff;">
-          ${otp}
+  await transporter.verify();
+  console.log("SMTP VERIFIED");
+  try{
+    await transporter.sendMail({
+      from: `"DevCollab" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'DevCollab password reset code',
+      html: `
+        <div style="font-family:Inter,Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#0a0a0b;color:#fff;border-radius:16px;">
+          <h1 style="font-size:22px;margin:0 0 12px;">Reset your DevCollab password</h1>
+  
+          <p style="color:#9ca3af;margin:0 0 24px;">
+            We received a request to reset the password for your DevCollab account.
+            Use the one-time code below to continue.
+          </p>
+  
+          <div style="font-size:32px;letter-spacing:8px;font-weight:800;background:#18181b;border:1px solid #27272a;border-radius:12px;padding:18px 20px;text-align:center;color:#fff;">
+            ${otp}
+          </div>
+  
+          <p style="color:#9ca3af;margin:24px 0 0;">
+            This verification code expires in <strong>10 minutes</strong>.
+          </p>
+  
+          <p style="color:#9ca3af;margin:12px 0 0;">
+            If you didn't request a password reset, you can safely ignore this email.
+            Your password will remain unchanged.
+          </p>
+  
+          <hr style="border:none;border-top:1px solid #27272a;margin:28px 0;" />
+  
+          <p style="color:#6b7280;font-size:12px;line-height:1.6;margin:0;">
+            For your security, never share this code with anyone.
+            DevCollab will never ask for your verification code by email or phone.
+          </p>
         </div>
+      `,
+    });
+  } catch (error) {
+    console.error("SENDMAIL FAILED");
 
-        <p style="color:#9ca3af;margin:24px 0 0;">
-          This verification code expires in <strong>10 minutes</strong>.
-        </p>
+    console.error(error);
 
-        <p style="color:#9ca3af;margin:12px 0 0;">
-          If you didn't request a password reset, you can safely ignore this email.
-          Your password will remain unchanged.
-        </p>
-
-        <hr style="border:none;border-top:1px solid #27272a;margin:28px 0;" />
-
-        <p style="color:#6b7280;font-size:12px;line-height:1.6;margin:0;">
-          For your security, never share this code with anyone.
-          DevCollab will never ask for your verification code by email or phone.
-        </p>
-      </div>
-    `,
-  });
+    throw error;
+  }
 };
 
 export const requestPasswordReset = asyncHandler(async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return fail(res, errors.array()[0].msg, 422, { errors: errors.array() });
 
+  console.log("========== PASSWORD RESET ==========");
+
   const { email } = req.body;
+  console.log("Incoming Email:", email);
   const user = await User.findOne({ email: email.toLowerCase() });
-  if (!user) return ok(res, { sent: true }); 
+  console.log("User Found:", !!user);
+
+  if (!user) {
+        console.log("User not found");
+        return ok(res,{sent:true});
+    }
+
+  console.log("Generating OTP");
 
   const otp = crypto.randomInt(100000, 999999).toString();
   const hash = crypto.createHash('sha256').update(otp).digest('hex');
@@ -281,9 +311,16 @@ export const requestPasswordReset = asyncHandler(async (req, res) => {
   user.resetOtpExpires = new Date(Date.now() + 10 * 60 * 1000);
   await user.save();
 
+  console.log("OTP Saved");
+
   try {
-    await sendResetEmail(user.email, otp);
+     console.log("Sending Email");
+     await sendResetEmail(user.email, otp);
+     console.log("Email Sent Successfully");
   } catch (error) {
+    console.error("EMAIL ERROR");
+    console.error(error);
+
     user.resetOtpHash = '';
     user.resetOtpExpires = null;
     await user.save();
