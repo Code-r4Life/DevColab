@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { chatSocket } from '../../lib/socket';
 import api from '../../lib/api'; 
-import { useAuth } from '../../hooks/useAuth'; 
-import { Button, Textarea, Avatar, Spinner } from '../ui';
+import { useAuth } from '../../context/useAuth'; 
+import { Button, Textarea, Avatar, Spinner } from './index';
 
 const ChatRoom = ({ channelId }) => {
   const { user } = useAuth();

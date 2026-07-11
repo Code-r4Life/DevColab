@@ -1,3 +1,4 @@
+import { MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
@@ -18,10 +19,10 @@ export const Sidebar = ({ isCollapsed }) => {
   const { currentWorkspace, projects } = useWorkspace();
   const { theme, toggleTheme } = useTheme();
   const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(false);
-
-  const navItems = [
+const navItems = [
     { icon: Home, label: "Home", path: "/dashboard" },
     { icon: Folder, label: "All Projects", path: "/projects" },
+    { icon: MessageSquare, label: "Team Chat", path: "/chat" }, // Added Team Chat here!
   ];
 
   return (

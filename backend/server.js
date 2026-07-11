@@ -77,7 +77,6 @@ app.use('/api/users', userRoutes);
 app.use('/api/workspaces', workspaceRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/tasks', taskRoutes);
-app.use('/api/chat', chatRoutes);
 app.use('/api/snippets', snippetRoutes);
 app.use('/api/wiki', wikiRoutes);
 app.use('/api/activity', activityRoutes);
@@ -85,6 +84,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/invites', inviteRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/role', roleRoutes);
+app.use('/api/chat', chatRoutes);
 
 app.use(errorHandler);
 
