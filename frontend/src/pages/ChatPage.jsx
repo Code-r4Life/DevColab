@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from "../lib/api";
 import ChatRoom from "../components/ui/ChatRoom.jsx";
-import { Spinner, Button, Input } from "../components/ui";
+import { Spinner, Button, Input, Modal } from "../components/ui";
 import { useWorkspace } from "../context/useWorkspace"; 
 import { useAuth } from "../context/useAuth"; 
 import { Plus, Trash2 } from "lucide-react"; // <-- Added Trash2 icon
@@ -16,6 +16,10 @@ const ChatPage = () => {
   
   const [isCreating, setIsCreating] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    channelToDelete: null
+  });
 
   const currentWorkspaceId = currentWorkspace?._id || currentWorkspace?.id;
 
@@ -67,22 +71,24 @@ const ChatPage = () => {
   };
 
   // NEW: Delete Channel Function
-  const handleDeleteChannel = async (e, channelId) => {
-    e.stopPropagation(); // Prevents the click from selecting the channel behind the button
-    
-    // Safety check so users don't accidentally delete things
-    if (!window.confirm("Are you sure you want to delete this channel? All messages will be lost.")) {
-      return;
-    }
+  const handleDeleteChannel = (e, channelId) => {
+    e.stopPropagation();
+    setConfirmModal({
+      isOpen: true,
+      channelToDelete: channelId
+    });
+  };
 
+  const confirmDeleteChannel = async () => {
+    const channelId = confirmModal.channelToDelete;
+    if (!channelId) return;
     try {
       await api.delete(`/chat/channels/${channelId}`);
       setChannels(prev => prev.filter(c => c._id !== channelId));
-      
-     
       if (activeChannel?._id === channelId) {
         setActiveChannel(null);
       }
+      setConfirmModal({ isOpen: false, channelToDelete: null });
     } catch (error) {
       console.error("Failed to delete channel", error);
     }
@@ -197,7 +203,27 @@ const ChatPage = () => {
             <p>Create or select a channel to start chatting</p>
           </div>
         )}
-      </div>
+    </div>
+      {/* Confirmation Modal */}
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false, channelToDelete: null })}
+        title="Delete Channel"
+        footer={
+          <div className="flex justify-end gap-3 mt-4">
+            <Button type="button" variant="secondary" onClick={() => setConfirmModal({ isOpen: false, channelToDelete: null })}>
+              Cancel
+            </Button>
+            <Button type="button" variant="danger" onClick={confirmDeleteChannel}>
+              Delete
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-gray-300">
+          Are you sure you want to delete this channel? All messages will be lost permanently. This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 };

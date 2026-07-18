@@ -59,9 +59,16 @@ export const WorkspaceProvider = ({ children }) => {
   }, [currentWorkspace]);
 
   const createProject = async (payload) => {
-    const data = unwrap(await api.post('/projects', { ...payload, workspaceId: payload.workspaceId || currentWorkspace?._id || currentWorkspace?.id }));
-    await fetchProjects(payload.workspaceId || currentWorkspace?._id || currentWorkspace?.id);
+    const wsId = payload.workspaceId || currentWorkspace?._id || currentWorkspace?.id || workspaces[0]?._id || workspaces[0]?.id;
+    const data = unwrap(await api.post('/projects', { ...payload, workspaceId: wsId }));
+    await fetchProjects(wsId);
     return data.project;
+  };
+
+  const deleteProject = async (projectId) => {
+    const wsId = currentWorkspace?._id || currentWorkspace?.id || workspaces[0]?._id || workspaces[0]?.id;
+    await api.delete(`/projects/${projectId}?workspaceId=${wsId}`);
+    await fetchProjects(wsId);
   };
 
   useEffect(() => {
@@ -77,7 +84,7 @@ export const WorkspaceProvider = ({ children }) => {
   }, [currentWorkspace, fetchProjects]);
 
   return (
-    <WorkspaceContext.Provider value={{ currentWorkspace, setCurrentWorkspace, workspaces, setWorkspaces, projects, loading, hasLoaded, fetchWorkspaces, createWorkspace, fetchProjects, createProject }}>
+    <WorkspaceContext.Provider value={{ currentWorkspace, setCurrentWorkspace, workspaces, setWorkspaces, projects, loading, hasLoaded, fetchWorkspaces, createWorkspace, fetchProjects, createProject, deleteProject }}>
       {children}
     </WorkspaceContext.Provider>
   );

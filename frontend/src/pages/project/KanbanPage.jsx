@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { PageShell } from '../../components/layout/PageShell';
-import { Badge, Avatar, Button, Input } from '../../components/ui';
+import { Badge, Avatar, Button, Input, Modal } from '../../components/ui';
 import { cn } from '../../assets/utils';
 import { Plus, X, LayoutGrid, List, CalendarDays, Upload, Trash2 } from 'lucide-react';
 import { KanbanColumn } from '../../components/kanban/KanbanColumn';
@@ -17,9 +17,31 @@ const emptyGrouped = () => ({ todo: [], in_progress: [], in_review: [], done: []
 const KanbanPage = () => {
   const { id: projectId } = useParams();
   const { user } = useAuth();
-  const { currentWorkspace, projects } = useWorkspace(); 
-  const workspaceId = currentWorkspace?._id || currentWorkspace?.id; 
+  const { currentWorkspace, projects, workspaces, fetchProjects } = useWorkspace(); 
+  const workspaceId = currentWorkspace?._id || currentWorkspace?.id || workspaces[0]?._id || workspaces[0]?.id; 
   const [grouped, setGrouped] = useState(emptyGrouped);
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null
+  });
+
+  const showConfirm = (title, message, onConfirm) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm: () => {
+        onConfirm();
+        closeConfirm();
+      }
+    });
+  };
+
+  const closeConfirm = () => {
+    setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+  };
   const [projectName, setProjectName] = useState('');
   const [fetchedWorkspaceId, setFetchedWorkspaceId] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -69,13 +91,33 @@ const KanbanPage = () => {
   }, [allTasks, user]);
 
   const loadTasks = async () => {
-    const data = unwrap(await api.get(`/tasks/project/${projectId}?grouped=true`));
+    if (!workspaceId) return;
+    const data = unwrap(await api.get(`/tasks/project/${projectId}?grouped=true&workspaceId=${workspaceId}`));
     setGrouped({ ...emptyGrouped(), ...(data.tasks || {}) });
   };
 
-  useEffect(() => {
-    loadTasks().catch(() => {});
+  const upsertTask = useCallback((task) => {
+    if (!task || (task.projectId?._id || task.projectId) !== projectId) return;
+    setGrouped((prev) => {
+      const next = emptyGrouped();
+      statusOrder.forEach((status) => {
+        next[status] = (prev[status] || []).filter((item) => (item._id || item.id) !== (task._id || task.id));
+      });
+      next[task.status] = [...next[task.status], task].sort((a, b) => (a.position || 0) - (b.position || 0));
+      return next;
+    });
   }, [projectId]);
+
+  const removeTask = useCallback(({ taskId, projectId: removedProjectId }) => {
+    if (removedProjectId && removedProjectId !== projectId) return;
+    setGrouped((prev) => Object.fromEntries(statusOrder.map((status) => [status, (prev[status] || []).filter((task) => (task._id || task.id) !== taskId)])));
+  }, [projectId]);
+
+  useEffect(() => {
+    if (workspaceId) {
+      loadTasks().catch(() => {});
+    }
+  }, [projectId, workspaceId]);
 
   useEffect(() => {
     const match = projects?.find(p => (p._id || p.id) === projectId);
@@ -95,19 +137,6 @@ const KanbanPage = () => {
     presenceSocket.connect();
     boardSocket.emit('join_board', { projectId });
     presenceSocket.emit('join_board', { projectId, userId: user?._id || user?.id, userName: user?.name, avatar: user?.avatar });
-    const upsertTask = (task) => {
-      if (!task || (task.projectId?._id || task.projectId) !== projectId) return;
-      setGrouped((prev) => {
-      const next = emptyGrouped();
-      statusOrder.forEach((status) => { next[status] = (prev[status] || []).filter((item) => (item._id || item.id) !== (task._id || task.id)); });
-      next[task.status] = [...next[task.status], task].sort((a, b) => (a.position || 0) - (b.position || 0));
-      return next;
-      });
-    };
-    const removeTask = ({ taskId, projectId: removedProjectId }) => {
-      if (removedProjectId && removedProjectId !== projectId) return;
-      setGrouped((prev) => Object.fromEntries(statusOrder.map((status) => [status, (prev[status] || []).filter((task) => (task._id || task.id) !== taskId)])));
-    };
     const onMoved = ({ task }) => task && upsertTask(task);
     boardSocket.on('task:created', upsertTask);
     boardSocket.on('task:updated', upsertTask);
@@ -122,12 +151,13 @@ const KanbanPage = () => {
       presenceSocket.off('presence:update', setViewers);
       boardSocket.emit('leave_board', { projectId });
     };
-  }, [projectId, user]);
+  }, [projectId, user, upsertTask, removeTask]);
 
   const createTask = async () => {
     try {
       const title = newTitle.trim() || 'New Task';
       const activeWorkspaceId = workspaceId || fetchedWorkspaceId;
+      setNewTitle('');
       const data = unwrap(
         await api.post('/tasks', {
           title,
@@ -136,12 +166,12 @@ const KanbanPage = () => {
           status: 'todo',
         })
       );
-      setNewTitle('');
-      await loadTasks();
+      upsertTask(data.task);
       setSelectedTask(data.task);
+      fetchProjects(activeWorkspaceId).catch(() => {});
     } catch (err) {
-
       alert(err?.response?.data?.message || 'Failed to create task'); 
+      await loadTasks();
     }
   };
 
@@ -156,10 +186,12 @@ const KanbanPage = () => {
           status 
         })
       );
-      await loadTasks();
+      upsertTask(data.task);
       setSelectedTask(data.task);
+      fetchProjects(activeWorkspaceId).catch(() => {});
     } catch (err) {
       alert(err?.response?.data?.message || 'Failed to create task');
+      await loadTasks();
     }
   };
   const moveTask = async (task, status) => {
@@ -217,7 +249,7 @@ const KanbanPage = () => {
       };
       const data = unwrap(await api.put(`/tasks/${taskDraft.id}`, payload));
       setSelectedTask(data.task);
-      await loadTasks();
+      upsertTask(data.task);
     } finally {
       setSaving(false);
     }
@@ -282,14 +314,21 @@ const KanbanPage = () => {
   const deleteTask = async (task) => {
     const taskId = task._id || task.id;
     if (!taskId) return;
-    if (!window.confirm('Delete this task?')) return;
-    setGrouped((prev) => Object.fromEntries(statusOrder.map((status) => [status, (prev[status] || []).filter((item) => (item._id || item.id) !== taskId)])));
-    setSelectedTask((prev) => (prev && (prev._id || prev.id) === taskId ? null : prev));
-    try {
-      await api.delete(`/tasks/${taskId}`);
-    } catch {
-      await loadTasks();
-    }
+    showConfirm(
+      'Delete Task',
+      `Are you sure you want to permanently delete task "${task.title}"? This action cannot be undone.`,
+      async () => {
+        setGrouped((prev) => Object.fromEntries(statusOrder.map((status) => [status, (prev[status] || []).filter((item) => (item._id || item.id) !== taskId)])));
+        setSelectedTask((prev) => (prev && (prev._id || prev.id) === taskId ? null : prev));
+        try {
+          await api.delete(`/tasks/${taskId}`);
+          const activeWorkspaceId = workspaceId || fetchedWorkspaceId;
+          fetchProjects(activeWorkspaceId).catch(() => {});
+        } catch {
+          await loadTasks();
+        }
+      }
+    );
   };
 
   return (
@@ -358,7 +397,8 @@ const KanbanPage = () => {
                   key={task._id || task.id}
                   className="grid grid-cols-7 px-4 py-3 text-sm text-left items-center hover:bg-black/5 dark:hover:bg-white/5"
                 >
-                  <button onClick={() => setSelectedTask(task)} className="text-left font-medium">
+                  <button onClick={() => setSelectedTask(task)} className="text-left font-medium flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: task.color || '#7C3AED' }} />
                     {task.title}
                   </button>
                   <span className="text-gray-500">{statusLabels[task.status]}</span>
@@ -407,7 +447,7 @@ const KanbanPage = () => {
                               onClick={() => setSelectedTask(task)}
                               className="w-full text-left flex items-center gap-2"
                             >
-                              <span className={cn("w-2 h-2 rounded-full", task.status === 'todo' ? 'bg-gray-400' : task.status === 'in_progress' ? 'bg-info' : task.status === 'in_review' ? 'bg-warning' : 'bg-success')} />
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: task.color || '#7C3AED' }} />
                               <span className="truncate">{task.title}</span>
                             </button>
                           ))}
@@ -576,6 +616,27 @@ const KanbanPage = () => {
         )}
       </div>
       {selectedTask && <div onClick={() => setSelectedTask(null)} className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40" />}
+
+      {/* Confirmation Modal */}
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={closeConfirm}
+        title={confirmModal.title}
+        footer={
+          <div className="flex justify-end gap-3 mt-4">
+            <Button type="button" variant="secondary" onClick={closeConfirm}>
+              Cancel
+            </Button>
+            <Button type="button" variant="danger" onClick={confirmModal.onConfirm}>
+              Delete
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-gray-300">
+          {confirmModal.message}
+        </p>
+      </Modal>
     </PageShell>
   );
 };

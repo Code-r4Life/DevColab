@@ -68,6 +68,8 @@ const WorkspaceSettings = () => {
   const [saveMsg, setSaveMsg] = useState('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [deletingWorkspace, setDeletingWorkspace] = useState(false);
+  const [wsDeleteOpen, setWsDeleteOpen] = useState(false);
+  const [wsConfirmName, setWsConfirmName] = useState('');
   const [logoPreview, setLogoPreview] = useState(currentWorkspace?.avatar || null);
 
   const workspaceId = currentWorkspace?._id || currentWorkspace?.id;
@@ -157,19 +159,18 @@ const WorkspaceSettings = () => {
   };
 
   // ── Delete workspace ──────────────────────────────────────────
-  const handleDeleteWorkspace = async () => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${currentWorkspace?.name}"? This cannot be undone.`
-    );
-    if (!confirmed) return;
-    const doubleConfirm = window.prompt(
-      `Type the workspace name "${currentWorkspace?.name}" to confirm deletion:`
-    );
-    if (doubleConfirm !== currentWorkspace?.name) {
+  const handleDeleteWorkspace = () => {
+    setWsConfirmName('');
+    setWsDeleteOpen(true);
+  };
+
+  const confirmDeleteWorkspace = async () => {
+    if (wsConfirmName !== currentWorkspace?.name) {
       alert('Name did not match. Deletion cancelled.');
       return;
     }
     setDeletingWorkspace(true);
+    setWsDeleteOpen(false);
     try {
       await api.delete(`/workspaces/${workspaceId}`);
       setWorkspaces((prev) => prev.filter((w) => (w._id || w.id) !== workspaceId));
@@ -631,6 +632,39 @@ const WorkspaceSettings = () => {
         <p className="text-sm text-gray-300">
           {confirmModal.message}
         </p>
+      </Modal>
+
+      {/* Workspace Deletion Modal */}
+      <Modal
+        isOpen={wsDeleteOpen}
+        onClose={() => setWsDeleteOpen(false)}
+        title="Delete Workspace"
+        footer={
+          <div className="flex justify-end gap-3 mt-4">
+            <Button type="button" variant="secondary" onClick={() => setWsDeleteOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" variant="danger" onClick={confirmDeleteWorkspace} disabled={wsConfirmName !== currentWorkspace?.name}>
+              Delete Permanently
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-300">
+            Are you sure you want to delete workspace <span className="font-bold text-white">"{currentWorkspace?.name}"</span>? All projects, tasks, snippets, and wiki pages inside this workspace will be permanently deleted.
+          </p>
+          <div className="space-y-2">
+            <label className="text-xs text-gray-400">
+              Type the workspace name <span className="font-semibold text-white">"{currentWorkspace?.name}"</span> to confirm:
+            </label>
+            <Input
+              value={wsConfirmName}
+              onChange={(e) => setWsConfirmName(e.target.value)}
+              placeholder={currentWorkspace?.name}
+            />
+          </div>
+        </div>
       </Modal>
     </PageShell>
   );

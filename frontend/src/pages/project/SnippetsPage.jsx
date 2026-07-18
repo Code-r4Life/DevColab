@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { PageShell } from '../../components/layout/PageShell';
-import { Badge, Button, Avatar, Input } from '../../components/ui';
+import { Badge, Button, Avatar, Input, Modal } from '../../components/ui';
 import { cn } from '../../assets/utils';
 import { Search, Plus, Copy, Trash2, FileCode, Check } from 'lucide-react';
 import api, { unwrap } from '../../lib/api';
@@ -45,6 +45,28 @@ const SnippetsPage = () => {
   const [saveError, setSaveError] = useState('');
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: null
+  });
+
+  const showConfirm = (title, message, onConfirm) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm: () => {
+        onConfirm();
+        closeConfirm();
+      }
+    });
+  };
+
+  const closeConfirm = () => {
+    setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+  };
   const selectedSnippet = snippets.find((s) => (s._id || s.id) === selectedId);
   const codeRef = useRef(null);
 
@@ -139,11 +161,21 @@ const SnippetsPage = () => {
     }
   };
 
-  const deleteSnippet = async () => {
+  const deleteSnippet = () => {
     if (!selectedSnippet) return;
-    await api.delete(`/snippets/${selectedSnippet._id || selectedSnippet.id}`);
-    setSnippets((prev) => prev.filter((snippet) => (snippet._id || snippet.id) !== (selectedSnippet._id || selectedSnippet.id)));
-    setSelectedId(null);
+    showConfirm(
+      'Delete Snippet',
+      `Are you sure you want to permanently delete snippet "${selectedSnippet.title}"? This action cannot be undone.`,
+      async () => {
+        try {
+          await api.delete(`/snippets/${selectedSnippet._id || selectedSnippet.id}`);
+          setSnippets((prev) => prev.filter((snippet) => (snippet._id || snippet.id) !== (selectedSnippet._id || selectedSnippet.id)));
+          setSelectedId(null);
+        } catch (err) {
+          alert(err.response?.data?.message || 'Failed to delete snippet');
+        }
+      }
+    );
   };
 
   const handleCopy = () => {
@@ -203,6 +235,27 @@ const SnippetsPage = () => {
           {toast}
         </div>
       )}
+
+      {/* Confirmation Modal */}
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={closeConfirm}
+        title={confirmModal.title}
+        footer={
+          <div className="flex justify-end gap-3 mt-4">
+            <Button type="button" variant="secondary" onClick={closeConfirm}>
+              Cancel
+            </Button>
+            <Button type="button" variant="danger" onClick={confirmModal.onConfirm}>
+              Delete
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-gray-300">
+          {confirmModal.message}
+        </p>
+      </Modal>
     </PageShell>
   );
 };
