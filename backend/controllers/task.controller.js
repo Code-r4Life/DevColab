@@ -62,7 +62,7 @@ export const updateTask = asyncHandler(async (req, res) => {
   if (!task) return fail(res, 'Task not found', 404);
   const previousStatus = task.status;
   const previousAssignee = task.assigneeId?.toString();
-  ['title', 'description', 'status', 'priority', 'assigneeId', 'labels', 'dueDate', 'position'].forEach((key) => {
+  ['title', 'description', 'status', 'priority', 'assigneeId', 'labels', 'dueDate', 'position', 'color'].forEach((key) => {
     if (req.body[key] !== undefined) task[key] = req.body[key];
   });
   await task.save();

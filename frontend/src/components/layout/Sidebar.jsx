@@ -10,15 +10,39 @@ import {
   Sun,
   Plus,
   Settings,
+  Trash2,
 } from "lucide-react";
 import { useWorkspace } from "../../context/useWorkspace";
 import { useTheme } from "../../context/useTheme";
 import { cn } from "../../assets/utils";
+import { Button, Modal } from "../ui";
 
 export const Sidebar = ({ isCollapsed }) => {
-  const { currentWorkspace, projects } = useWorkspace();
+  const { currentWorkspace, projects, deleteProject } = useWorkspace();
   const { theme, toggleTheme } = useTheme();
   const [isWorkspaceOpen, setIsWorkspaceOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState(null);
+
+  const triggerDeleteProject = (project) => {
+    setProjectToDelete(project);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteProject = async () => {
+    if (!projectToDelete) return;
+    try {
+      const pid = projectToDelete._id || projectToDelete.id;
+      await deleteProject(pid);
+      setDeleteConfirmOpen(false);
+      setProjectToDelete(null);
+      if (window.location.pathname.includes(`/project/${pid}`)) {
+        window.location.href = "/dashboard";
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to delete project");
+    }
+  };
 const navItems = [
     { icon: Home, label: "Home", path: "/dashboard" },
     { icon: Folder, label: "All Projects", path: "/projects" },
@@ -116,7 +140,20 @@ const navItems = [
               style={{ backgroundColor: project.color || "#7C3AED" }}
             />
             {!isCollapsed && (
-              <span className="truncate flex-1">{project.name}</span>
+              <>
+                <span className="truncate flex-1">{project.name}</span>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    triggerDeleteProject(project);
+                  }}
+                  className="text-danger hover:text-red-400 p-1 rounded cursor-pointer ml-auto transition-colors"
+                  title="Delete project"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </>
             )}
           </NavLink>
         ))}
@@ -177,6 +214,26 @@ const navItems = [
           {!isCollapsed && <span className="font-medium">Profile</span>}
         </NavLink>
       </div>
+      {/* Reusable Project Deletion Modal */}
+      <Modal
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        title="Delete Project"
+        footer={
+          <div className="flex justify-end gap-3 mt-4">
+            <Button type="button" variant="secondary" onClick={() => setDeleteConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" variant="danger" onClick={confirmDeleteProject}>
+              Delete
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-gray-300">
+          Are you sure you want to permanently delete project <span className="font-bold text-white">"{projectToDelete?.name}"</span>? All tasks, snippets, and wiki pages in this project will be permanently deleted. This action cannot be undone.
+        </p>
+      </Modal>
     </aside>
   );
 };

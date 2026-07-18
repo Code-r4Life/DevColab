@@ -37,6 +37,7 @@ export const TaskCard = ({ task, onClick, assignee, onDragStart, onDelete }) => 
       onClick={onClick}
       draggable
       onDragStart={(event) => onDragStart?.(event, task)}
+      style={{ borderTop: `3px solid ${task.color || '#7C3AED'}` }}
       className="surface p-4 rounded-xl space-y-4 hover:translate-y-[-2px] transition-all cursor-pointer group shadow-sm border dark:border-dark-border/50"
     >
       <div className="flex items-center justify-between">
