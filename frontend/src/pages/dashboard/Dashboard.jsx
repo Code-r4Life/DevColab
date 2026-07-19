@@ -90,23 +90,26 @@ const Dashboard = () => {
       <div className="max-w-6xl mx-auto space-y-10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h1 className="text-3xl font-bold mb-1">{greeting}, {user?.name || "developer"}</h1>
-            <p className="text-gray-500">Here's what's happening across your projects today.</p>
+            <h1 className="text-3xl font-bold mb-1 text-zinc-900 dark:text-white">{greeting}, {user?.name || "developer"}</h1>
+            <p className="text-zinc-600 dark:text-zinc-400">Here's what's happening across your projects today.</p>
           </div>
           <div className="flex gap-3">
             <Button className="gap-2" onClick={handleNewProject}><Plus size={18} /> New Project</Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
             ["Summarize Daily", Zap, "primary"],
             ["Team Standup", MessageSquare, "success"],
             ["What's Blocking?", BarChart2, "info"],
           ].map(([label, Icon, tone]) => (
-            <Link key={label} to={projects[0] ? `/project/${projects[0]._id || projects[0].id}/ai` : "/dashboard"} className="surface p-4 rounded-xl flex items-center gap-4 hover:border-primary transition-all group text-left card-interactive">
+            <Link key={label} to={projects[0] ? `/project/${projects[0]._id || projects[0].id}/ai` : "/dashboard"} className="surface p-4 rounded-xl flex items-center gap-4 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-[#121214] hover:border-primary transition-all group text-left card-interactive">
               <div className={`w-10 h-10 rounded-lg bg-${tone}/10 flex items-center justify-center text-${tone}`}><Icon size={20} /></div>
-              <div><p className="font-bold">{label}</p><p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">AI Action</p></div>
+              <div>
+                <p className="font-bold text-zinc-900 dark:text-white">{label}</p>
+                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 uppercase font-bold tracking-widest">AI Action</p>
+              </div>
             </Link>
           ))}
         </div>
@@ -157,9 +160,14 @@ const Dashboard = () => {
               {activities.map((activity) => (
                 <div key={activity._id || activity.id} className="flex gap-3 relative">
                   <Avatar src={activity.userId?.avatar} name={activity.userId?.name} size="sm" />
-                  <div className="flex-1"><p className="text-xs leading-relaxed"><span className="font-bold">{activity.userId?.name || "Someone"}</span> {activity.action.replace(".", " ")}</p><p className="text-[10px] text-gray-500 mt-1">{timeAgo(activity.createdAt)}</p></div>
+                  <div className="flex-1">
+                    <p className="text-xs leading-relaxed text-zinc-800 dark:text-zinc-300">
+                      <span className="font-bold text-zinc-900 dark:text-white">{activity.userId?.name || "Someone"}</span> {activity.action.replace(".", " ")}
+                    </p>
+                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">{timeAgo(activity.createdAt)}</p>
+                  </div>
                 </div>
-              ))}
+              ))} 
             </div>
             <Button variant="secondary" className="w-full mt-8 py-2 text-xs" onClick={handleViewFeed}>View Full Feed <ArrowRight size={14} /></Button>
           </section>

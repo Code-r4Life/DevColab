@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-
 const versionSchema = new mongoose.Schema({
   title: { type: String, required: true },
   content: { type: String, default: '' },
