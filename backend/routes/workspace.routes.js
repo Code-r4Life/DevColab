@@ -13,14 +13,16 @@ import {
 } from '../controllers/workspace.controller.js';
 
 const router = Router();
+
 router.use(auth);
+
 router.post('/', createWorkspace);
 router.get('/', listWorkspaces);
 router.get('/:workspaceId', roleCheck('Owner', 'Admin', 'Contributor', 'Member'), getWorkspace);
-router.get('/:workspaceId/members', roleCheck('Owner', 'Admin', 'Contributor', 'Member'), listMembers);
 router.put('/:workspaceId', roleCheck('Owner', 'Admin'), updateWorkspace);
+router.delete('/:workspaceId', roleCheck('Owner'), deleteWorkspace);
+router.get('/:workspaceId/members', roleCheck('Owner', 'Admin', 'Contributor', 'Member'), listMembers);
 router.put('/:workspaceId/members/:userId/role', roleCheck('Owner', 'Admin'), changeMemberRole);
 router.delete('/:workspaceId/members/:userId', roleCheck('Owner', 'Admin'), removeMember);
-router.delete('/:workspaceId', roleCheck('Owner'), deleteWorkspace);
 
 export default router;

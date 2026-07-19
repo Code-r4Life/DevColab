@@ -4,7 +4,6 @@ const memberSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   role: { 
     type: String, 
-    // The new 5 professional roles requested by your leader
     enum: ['Owner', 'Admin', 'Contributor', 'Member', 'Viewer'], 
     default: 'Member' 
   },
@@ -46,6 +45,17 @@ workspaceSchema.pre('save', function (next) {
     seen.add(id);
     return true;
   });
+  next();
+});
+
+workspaceSchema.pre('findOneAndDelete', async function (next) {
+  const docToQuery = await this.model.findOne(this.getQuery());
+  if (docToQuery) {
+    const workspaceId = docToQuery._id;
+
+    await mongoose.model('Project').deleteMany({ workspaceId });
+    await mongoose.model('Channel').deleteMany({ workspaceId });
+  }
   next();
 });
 
