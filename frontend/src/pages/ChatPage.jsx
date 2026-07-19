@@ -4,11 +4,13 @@ import ChatRoom from "../components/ui/ChatRoom.jsx";
 import { Spinner, Button, Input, Modal } from "../components/ui";
 import { useWorkspace } from "../context/useWorkspace"; 
 import { useAuth } from "../context/useAuth"; 
-import { Plus, Trash2 } from "lucide-react"; // <-- Added Trash2 icon
+import { Plus, Trash2, ArrowLeft } from "lucide-react"; // Added ArrowLeft icon
+import { useNavigate } from "react-router-dom"; // Added useNavigate
 
 const ChatPage = () => {
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth(); 
+  const navigate = useNavigate(); // Initialize navigation
   
   const [channels, setChannels] = useState([]);
   const [activeChannel, setActiveChannel] = useState(null);
@@ -106,6 +108,17 @@ const ChatPage = () => {
     <div className="flex h-screen w-full bg-[#070709] text-white">
       {/* Left Sidebar: Channel List */}
       <div className="w-64 border-r border-white/10 bg-white/[0.02] flex flex-col">
+        {/* Navigation Control Header */}
+        <div className="p-3 border-b border-white/10 bg-black/10">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center gap-2 text-xs font-medium text-zinc-400 hover:text-white transition-colors px-2 py-1.5 rounded-md hover:bg-white/5 w-full text-left"
+          >
+            <ArrowLeft size={14} />
+            Back to Dashboard
+          </button>
+        </div>
+
         <div className="p-4 border-b border-white/10 flex justify-between items-center">
           <h2 className="font-bold text-lg">Team Channels</h2>
           <button 

@@ -162,15 +162,15 @@ export const Sidebar = ({ isCollapsed }) => {
           <NavLink
             key={item.label}
             to={item.path}
-            className={({ isActive }) =>
+              className={({ isActive }) =>
               cn(
                 "flex items-center gap-3 px-3 py-2 rounded-md transition-all group",
                 isActive
-                  ? "bg-primary/10 text-primary border-l-2 border-primary"
-                  : "text-gray-500 hover:bg-black/5 dark:hover:bg-white/5",
+                  ? "bg-primary/10 text-primary border-l-2 border-primary font-semibold"
+                  : "text-zinc-600 dark:text-zinc-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-zinc-100",
               )
             }
-          >
+            >
             <item.icon size={20} />
             {!isCollapsed && (
               <span className="flex-1 font-medium">{item.label}</span>
@@ -182,10 +182,9 @@ export const Sidebar = ({ isCollapsed }) => {
             )}
           </NavLink>
         ))}
-
-        <div className="pt-4 pb-2 px-3">
+    <div className="pt-4 pb-2 px-3">
           {!isCollapsed && (
-            <span className="text-[10px] font-bold uppercase text-gray-500 tracking-wider">
+            <span className="text-[10px] font-bold uppercase text-zinc-500 dark:text-zinc-400 tracking-wider">
               Projects
             </span>
           )}
