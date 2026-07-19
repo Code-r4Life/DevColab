@@ -23,7 +23,7 @@ const ROLES = ['Owner', 'Admin', 'Contributor', 'Member', 'Viewer'];
 
 const WorkspaceSettings = () => {
   const navigate = useNavigate();
-  const { currentWorkspace, setCurrentWorkspace, setWorkspaces } = useWorkspace();
+  const { currentWorkspace, setCurrentWorkspace, setWorkspaces, deleteWorkspace } = useWorkspace();
   const { user } = useAuth();
   const fileInputRef = useRef(null);
 
@@ -73,11 +73,17 @@ const WorkspaceSettings = () => {
   const [logoPreview, setLogoPreview] = useState(currentWorkspace?.avatar || null);
 
   const workspaceId = currentWorkspace?._id || currentWorkspace?.id;
+  
+  // Kept here to satisfy local table rows mapping dependencies downstream
   const isOwner = currentWorkspace?.members?.find(
     (m) => (m.userId?._id || m.userId) === (user?._id || user?.id) && m.role === 'Owner'
   );
 
-  // <--- CHANGED 2: Added the Activity tab here
+  // New expanded capability check for UI section visibility thresholds
+  const isOwnerOrAdmin = currentWorkspace?.members?.find(
+    (m) => (m.userId?._id || m.userId) === (user?._id || user?.id) && (m.role === 'Owner' || m.role === 'Admin')
+  );
+  
   const tabs = [
     { id: 'general', label: 'General', icon: Settings },
     { id: 'members', label: 'Members', icon: Users },
@@ -172,17 +178,15 @@ const WorkspaceSettings = () => {
     setDeletingWorkspace(true);
     setWsDeleteOpen(false);
     try {
-      await api.delete(`/workspaces/${workspaceId}`);
-      setWorkspaces((prev) => prev.filter((w) => (w._id || w.id) !== workspaceId));
-      setCurrentWorkspace(null);
-      navigate('/onboarding/workspace');
+      await deleteWorkspace(workspaceId);
+      navigate('/dashboard'); 
     } catch (err) {
       alert(err?.response?.data?.message || 'Failed to delete workspace.');
     } finally {
       setDeletingWorkspace(false);
     }
   };
-
+  
   // ── Send invite ───────────────────────────────────────────────
   const sendInvite = async () => {
     if (!inviteEmail.trim()) return;
@@ -354,8 +358,8 @@ const WorkspaceSettings = () => {
                 </div>
               </section>
 
-              {/* Delete workspace — only owner sees this */}
-              {isOwner && (
+              {/* Delete workspace — visible if owner or admin */}
+              {isOwnerOrAdmin && (
                 <section>
                   <div className="surface p-8 rounded-2xl border border-danger/30 bg-danger/5">
                     <h3 className="text-lg font-bold text-danger mb-2">Delete Workspace</h3>
@@ -548,7 +552,6 @@ const WorkspaceSettings = () => {
             </div>
           )}
 
-          {/* <--- CHANGED 3: Added the Activity Feed Render Block here */}
           {/* ── ACTIVITY FEED ── */}
           {activeTab === 'activity' && (
             <div className="space-y-6">

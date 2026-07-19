@@ -48,6 +48,27 @@ export const WorkspaceProvider = ({ children }) => {
     return data.workspace;
   };
 
+  const deleteWorkspace = async (workspaceId) => {
+    setLoading(true);
+    try {
+      await api.delete(`/workspaces/${workspaceId}`);
+      const updatedWorkspaces = await fetchWorkspaces();
+      
+      const nextWorkspaceId = currentWorkspace?._id || currentWorkspace?.id;
+      if (nextWorkspaceId === workspaceId) {
+        setCurrentWorkspace(updatedWorkspaces[0] || null);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const switchWorkspace = useCallback((workspace) => {
+    if (workspace) {
+      setCurrentWorkspace(workspace);
+    }
+  }, []);
+
   const fetchProjects = useCallback(async (workspaceId = currentWorkspace?._id || currentWorkspace?.id) => {
     if (!workspaceId) {
       setProjects([]);
@@ -84,7 +105,22 @@ export const WorkspaceProvider = ({ children }) => {
   }, [currentWorkspace, fetchProjects]);
 
   return (
-    <WorkspaceContext.Provider value={{ currentWorkspace, setCurrentWorkspace, workspaces, setWorkspaces, projects, loading, hasLoaded, fetchWorkspaces, createWorkspace, fetchProjects, createProject, deleteProject }}>
+    <WorkspaceContext.Provider value={{ 
+      currentWorkspace, 
+      setCurrentWorkspace, 
+      workspaces, 
+      setWorkspaces, 
+      projects, 
+      loading, 
+      hasLoaded, 
+      fetchWorkspaces, 
+      createWorkspace, 
+      deleteWorkspace,
+      switchWorkspace,
+      fetchProjects, 
+      createProject, 
+      deleteProject 
+    }}>
       {children}
     </WorkspaceContext.Provider>
   );

@@ -21,15 +21,44 @@ const Dashboard = () => {
   }, [currentWorkspace, fetchProjects]);
 
   useEffect(() => {
+    let isMounted = true;
+    
     const load = async () => {
       if (!currentWorkspace) return;
       const workspaceId = currentWorkspace._id || currentWorkspace.id;
-      const activityData = unwrap(await api.get(`/activity/workspace/${workspaceId}?limit=4`));
-      setActivities(activityData.activities || []);
-      const taskLists = await Promise.all(projects.slice(0, 4).map((project) => api.get(`/tasks/project/${project._id || project.id}`)));
-      setTasks(taskLists.flatMap((response) => unwrap(response).tasks || []));
+      
+      try {
+        const activityData = unwrap(await api.get(`/activity/workspace/${workspaceId}?limit=4`));
+        if (isMounted) setActivities(activityData.activities || []);
+      } catch (e) {
+        console.warn("Could not load activities");
+      }
+
+      if (!projects || projects.length === 0) {
+        if (isMounted) setTasks([]);
+        return;
+      }
+
+      const validProjects = projects.filter(p => p && (p._id || p.id)).slice(0, 4);
+      const taskPromises = validProjects.map(async (project) => {
+        try {
+          const projectId = project._id || project.id;
+          const res = await api.get(`/tasks/project/${projectId}?workspaceId=${workspaceId}`);
+          const data = unwrap(res);
+          return data.tasks || [];
+        } catch (err) {
+          console.warn(`Could not load tasks for project ${project.name}`);
+          return []; 
+        }
+      });
+
+      const taskLists = await Promise.all(taskPromises);
+      if (isMounted) setTasks(taskLists.flat());
     };
-    load().catch(() => {});
+    
+    load();
+    
+    return () => { isMounted = false; };
   }, [currentWorkspace, projects]);
 
   const pendingTasks = tasks.filter((task) => taskAssigneeId(task)?.toString() === (user?._id || user?.id) && task.status !== "done");
