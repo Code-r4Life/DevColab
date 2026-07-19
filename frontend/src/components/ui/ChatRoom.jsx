@@ -24,10 +24,12 @@ const ChatRoom = ({ channelId }) => {
   useEffect(() => {
     if (!channelId) return;
 
+    const room = channelId.toString();
+
     const fetchHistory = async () => {
       setIsLoading(true);
       try {
-        const response = await api.get(`/chat/channels/${channelId}/messages`);
+        const response = await api.get(`/chat/channels/${room}/messages`);
         setMessages(response.data.messages || []);
       } catch (error) {
         console.error('Failed to load message history:', error);
@@ -38,11 +40,16 @@ const ChatRoom = ({ channelId }) => {
 
     fetchHistory();
 
-    chatSocket.connect();
-    chatSocket.emit('join_channel', channelId);
+    if (!chatSocket.connected) {
+      chatSocket.connect();
+    }
+    
+    chatSocket.emit('join_channel', room);
 
     const handleReceiveMessage = (message) => {
-      setMessages((prev) => [...prev, message]);
+      if (message.channelId === room || message.channelId?._id === room) {
+        setMessages((prev) => [...prev, message]);
+      }
     };
 
     const handleUserTyping = ({ userName }) => {
@@ -66,38 +73,40 @@ const ChatRoom = ({ channelId }) => {
     chatSocket.on('user_stopped_typing', handleUserStoppedTyping);
 
     return () => {
-      chatSocket.emit('leave_channel', channelId);
+      chatSocket.emit('leave_channel', room);
       chatSocket.off('receive_message', handleReceiveMessage);
       chatSocket.off('user_typing', handleUserTyping);
       chatSocket.off('user_stopped_typing', handleUserStoppedTyping);
-      chatSocket.disconnect();
     };
   }, [channelId]);
 
   const handleTyping = (e) => {
     setNewMessage(e.target.value);
-    chatSocket.emit('typing', { channelId, userName: user?.name });
+    
+    if (channelId) {
+      chatSocket.emit('typing', { channelId: channelId.toString(), userName: user?.name });
 
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
-    typingTimeoutRef.current = setTimeout(() => {
-      chatSocket.emit('stop_typing', { channelId, userName: user?.name });
-    }, 2000);
+      typingTimeoutRef.current = setTimeout(() => {
+        chatSocket.emit('stop_typing', { channelId: channelId.toString(), userName: user?.name });
+      }, 2000);
+    }
   };
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !channelId) return;
 
     const messageData = {
-      channelId,
+      channelId: channelId.toString(),
       senderId: user?._id || user?.id,
       content: newMessage.trim(),
     };
 
     chatSocket.emit('send_message', messageData);
     
-    chatSocket.emit('stop_typing', { channelId, userName: user?.name });
+    chatSocket.emit('stop_typing', { channelId: channelId.toString(), userName: user?.name });
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     setNewMessage('');
