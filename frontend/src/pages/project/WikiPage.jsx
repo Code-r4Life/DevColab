@@ -105,7 +105,7 @@ const WikiPage = () => {
     content: '',
     editorProps: {
       attributes: {
-        class: 'prose prose-sm dark:prose-invert focus:outline-none min-h-[420px] max-w-none text-gray-100 p-2',
+        class: 'prose prose-sm dark:prose-invert focus:outline-none min-h-[420px] max-w-none p-2',
       },
       handleDrop: (view, event, slice, moved) => {
         if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]) {
@@ -203,15 +203,24 @@ const WikiPage = () => {
   // Load single page details when selectedPageId changes
   useEffect(() => {
     if (!selectedPageId) return;
+
+    // 1. Instantly use local cached page if available to eliminate transition lag
+    const localPage = pages.find((p) => (p._id || p.id) === selectedPageId);
+    if (localPage) {
+      setSelectedPage(localPage);
+      setPreviewHtml(localPage.content || '');
+      if (editor && editor.getHTML() !== localPage.content) {
+        editor.commands.setContent(localPage.content || '');
+      }
+    }
+
+    // 2. Fetch latest in background to sync
     api.get(`/wiki/${selectedPageId}`).then((res) => {
       const page = unwrap(res);
       setSelectedPage(page || null);
       setPreviewHtml(page?.content || '');
-      if (editor && page) {
-        // Sync editor content only if it differs to prevent losing cursor position
-        if (editor.getHTML() !== page.content) {
-          editor.commands.setContent(page.content || '');
-        }
+      if (editor && page && editor.getHTML() !== page.content) {
+        editor.commands.setContent(page.content || '');
       }
     }).catch((err) => {
       console.error("Failed to load wiki page:", err);
@@ -356,7 +365,7 @@ const WikiPage = () => {
           };
         });
         
-        setPages((prev) => prev.map((p) => (p._id || p.id) === (selectedPage._id || selectedPage.id) ? { ...p, title: selectedPage.title } : p));
+        setPages((prev) => prev.map((p) => (p._id || p.id) === (selectedPage._id || selectedPage.id) ? { ...p, title: selectedPage.title, content: latestContent } : p));
         setSaveState('Saved');
       } catch (err) {
         console.error("Failed to auto-save:", err);
@@ -407,7 +416,7 @@ const WikiPage = () => {
           versionHistory: data.versionHistory 
         };
       });
-      setPages((prev) => prev.map((p) => (p._id || p.id) === (selectedPage._id || selectedPage.id) ? { ...p, title: selectedPage.title } : p));
+      setPages((prev) => prev.map((p) => (p._id || p.id) === (selectedPage._id || selectedPage.id) ? { ...p, title: selectedPage.title, content: latestContent } : p));
       setSaveState('Saved');
     } catch (err) {
       console.error("Failed to save wiki page:", err);
@@ -448,26 +457,33 @@ const WikiPage = () => {
 
   const confirmDeletePage = async () => {
     if (!pageToDeleteId) return;
-    try {
-      await api.delete(`/wiki/${pageToDeleteId}`);
-      const remainingPages = pages.filter((p) => {
-        const pId = p.id || p._id;
-        return pId !== pageToDeleteId;
-      });
-      setPages(remainingPages);
-      if (selectedPageId === pageToDeleteId) {
-        const nextSelected = remainingPages[0]?.id || remainingPages[0]?._id || null;
-        setSelectedPageId(nextSelected);
-        if (!nextSelected) {
-          setSelectedPage(null);
-          editor?.commands.setContent('');
-        }
+    const targetId = pageToDeleteId;
+
+    // 1. Optimistically update local states & close modal immediately
+    const remainingPages = pages.filter((p) => {
+      const pId = p.id || p._id;
+      return pId !== targetId;
+    });
+    setPages(remainingPages);
+    
+    if (selectedPageId === targetId) {
+      const nextSelected = remainingPages[0]?.id || remainingPages[0]?._id || null;
+      setSelectedPageId(nextSelected);
+      if (!nextSelected) {
+        setSelectedPage(null);
+        editor?.commands.setContent('');
       }
-      setDeleteModalOpen(false);
-      setPageToDeleteId(null);
+    }
+    setDeleteModalOpen(false);
+    setPageToDeleteId(null);
+
+    // 2. Perform database deletion in background
+    try {
+      await api.delete(`/wiki/${targetId}`);
     } catch (err) {
       console.error("Failed to delete page:", err);
-      alert("Failed to delete page: " + (err.response?.data?.message || err.message));
+      // Re-sync on failure
+      loadPages();
     }
   };
 
@@ -531,6 +547,7 @@ const WikiPage = () => {
           updatedBy: data.updatedBy,
           versionHistory: data.versionHistory 
         } : prev);
+        setPages((prev) => prev.map((p) => (p._id || p.id) === (selectedPage._id || selectedPage.id) ? { ...p, content: updatedHtml } : p));
         setPreviewHtml(updatedHtml);
         setSaveState('Saved');
       } catch (err) {
@@ -582,6 +599,7 @@ const WikiPage = () => {
           updatedBy: data.updatedBy,
           versionHistory: data.versionHistory 
         } : prev);
+        setPages((prev) => prev.map((p) => (p._id || p.id) === (selectedPage._id || selectedPage.id) ? { ...p, content: updatedHtml } : p));
         setPreviewHtml(updatedHtml);
         setSaveState('Saved');
       } catch (err) {
@@ -728,7 +746,7 @@ const WikiPage = () => {
                 onMouseDown={(e) => { e.preventDefault(); executeCommand('formatBlock', 'PRE'); }}
                 variant="ghost" 
                 size="sm" 
-                className={cn("w-8 h-8 p-0 transition-colors cursor-pointer", editor?.isActive('codeBlock') ? "bg-primary/20 text-primary hover:bg-primary/30" : "text-gray-400 hover:text-white")} 
+                className={cn("w-8 h-8 p-0 transition-colors cursor-pointer", editor?.isActive('codeBlock') ? "bg-primary/20 text-primary hover:bg-primary/30" : "text-zinc-500 hover:text-zinc-950 dark:text-gray-400 dark:hover:text-white")} 
                 title="Code Block"
               >
                 <Code size={16} />
@@ -738,7 +756,7 @@ const WikiPage = () => {
                 onMouseDown={(e) => { e.preventDefault(); openLinkModal(); }}
                 variant="ghost" 
                 size="sm" 
-                className={cn("w-8 h-8 p-0 transition-colors cursor-pointer", editor?.isActive('link') ? "bg-primary/20 text-primary hover:bg-primary/30" : "text-gray-400 hover:text-white")} 
+                className={cn("w-8 h-8 p-0 transition-colors cursor-pointer", editor?.isActive('link') ? "bg-primary/20 text-primary hover:bg-primary/30" : "text-zinc-500 hover:text-zinc-950 dark:text-gray-400 dark:hover:text-white")} 
                 title="Link"
               >
                 <Link2 size={16} />
@@ -748,7 +766,7 @@ const WikiPage = () => {
                 onMouseDown={(e) => { e.preventDefault(); openImageModal(); }}
                 variant="ghost" 
                 size="sm" 
-                className="w-8 h-8 p-0 text-gray-400 hover:text-white transition-colors cursor-pointer" 
+                className="w-8 h-8 p-0 text-zinc-500 hover:text-zinc-950 dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer" 
                 title="Image"
               >
                 <ImageIcon size={16} />
@@ -778,7 +796,7 @@ const WikiPage = () => {
                         setFontFamilyDropdownOpen(!fontFamilyDropdownOpen);
                         setFontSizeDropdownOpen(false);
                       }}
-                      className="bg-dark-border border border-white/10 text-gray-300 text-xs rounded px-2.5 py-1.5 outline-none h-8 cursor-pointer hover:border-primary/50 flex items-center gap-1.5 min-w-[100px] justify-between transition-colors"
+                      className="bg-light-bg dark:bg-dark-border border border-light-border dark:border-white/10 text-zinc-700 dark:text-gray-300 text-xs rounded px-2.5 py-1.5 outline-none h-8 cursor-pointer hover:border-primary/50 flex items-center gap-1.5 min-w-[100px] justify-between transition-colors"
                     >
                       <span className="truncate">{activeLabel}</span>
                       <ChevronRight size={12} className={cn("transition-transform shrink-0", fontFamilyDropdownOpen ? "-rotate-90" : "rotate-90")} />
@@ -792,7 +810,7 @@ const WikiPage = () => {
                             setFontFamilyDropdownOpen(false);
                           }}
                         />
-                        <div className="absolute left-0 mt-1 w-44 rounded-lg shadow-xl bg-dark-bg/95 border border-white/10 backdrop-blur-md z-50 py-1.5 max-h-60 overflow-y-auto">
+                        <div className="absolute left-0 mt-1 w-44 rounded-lg shadow-xl bg-white dark:bg-dark-bg/95 border border-light-border dark:border-white/10 backdrop-blur-md z-50 py-1.5 max-h-60 overflow-y-auto">
                           {fontFamilies.map((font) => (
                             <button
                               key={font.value}
@@ -807,7 +825,7 @@ const WikiPage = () => {
                                 setFontFamilyDropdownOpen(false);
                               }}
                               className={cn(
-                                "w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-primary/20 hover:text-white transition-colors cursor-pointer block",
+                                "w-full text-left px-3 py-1.5 text-xs text-zinc-700 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-white transition-colors cursor-pointer block",
                                 (activeFont === font.value || (!activeFont && font.value === 'default')) && "bg-primary/10 text-primary font-semibold"
                               )}
                             >
@@ -846,7 +864,7 @@ const WikiPage = () => {
                         setFontSizeDropdownOpen(!fontSizeDropdownOpen);
                         setFontFamilyDropdownOpen(false);
                       }}
-                      className="bg-dark-border border border-white/10 text-gray-300 text-xs rounded px-2.5 py-1.5 outline-none h-8 cursor-pointer hover:border-primary/50 flex items-center gap-1.5 min-w-[90px] justify-between transition-colors"
+                      className="bg-light-bg dark:bg-dark-border border border-light-border dark:border-white/10 text-zinc-700 dark:text-gray-300 text-xs rounded px-2.5 py-1.5 outline-none h-8 cursor-pointer hover:border-primary/50 flex items-center gap-1.5 min-w-[90px] justify-between transition-colors"
                     >
                       <span className="truncate">{activeLabel}</span>
                       <ChevronRight size={12} className={cn("transition-transform shrink-0", fontSizeDropdownOpen ? "-rotate-90" : "rotate-90")} />
@@ -860,7 +878,7 @@ const WikiPage = () => {
                             setFontSizeDropdownOpen(false);
                           }}
                         />
-                        <div className="absolute left-0 mt-1 w-32 rounded-lg shadow-xl bg-dark-bg/95 border border-white/10 backdrop-blur-md z-50 py-1.5 max-h-60 overflow-y-auto">
+                        <div className="absolute left-0 mt-1 w-32 rounded-lg shadow-xl bg-white dark:bg-dark-bg/95 border border-light-border dark:border-white/10 backdrop-blur-md z-50 py-1.5 max-h-60 overflow-y-auto">
                           {fontSizes.map((size) => (
                             <button
                               key={size.value}
@@ -875,7 +893,7 @@ const WikiPage = () => {
                                 setFontSizeDropdownOpen(false);
                               }}
                               className={cn(
-                                "w-full text-left px-3 py-1.5 text-xs text-gray-300 hover:bg-primary/20 hover:text-white transition-colors cursor-pointer block",
+                                "w-full text-left px-3 py-1.5 text-xs text-zinc-700 dark:text-gray-300 hover:bg-primary/10 dark:hover:bg-primary/20 hover:text-primary dark:hover:text-white transition-colors cursor-pointer block",
                                 (activeSize === size.value || (!activeSize && size.value === 'default')) && "bg-primary/10 text-primary font-semibold"
                               )}
                             >
@@ -957,7 +975,7 @@ const WikiPage = () => {
                     <span>Last edited {timeAgo(selectedPage.updatedAt)}</span>
                   </div>
                   <input 
-                    className="text-5xl font-bold bg-transparent border-none outline-none w-full text-gray-100" 
+                    className="text-5xl font-bold bg-transparent border-none outline-none w-full text-gray-900 dark:text-gray-100" 
                     value={selectedPage.title || ''} 
                     onChange={(e) => {
                       const newTitle = e.target.value;
@@ -1171,9 +1189,9 @@ const WikiPage = () => {
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2 text-center pointer-events-none">
-                <Plus size={24} className="text-gray-400 group-hover:text-primary transition-colors" />
-                <span className="text-sm font-medium text-gray-300">Choose an image from device</span>
-                <span className="text-xs text-gray-500">Supports PNG, JPG, GIF, WebP</span>
+                 <Plus size={24} className="text-zinc-400 group-hover:text-primary transition-colors" />
+                 <span className="text-sm font-medium text-zinc-700 dark:text-gray-300">Choose an image from device</span>
+                 <span className="text-xs text-zinc-700 dark:text-gray-400">Supports PNG, JPG, GIF, WebP</span>
               </div>
             )}
           </div>

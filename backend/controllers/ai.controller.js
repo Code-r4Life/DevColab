@@ -1,12 +1,29 @@
 import Task from '../models/Task.js';
+import Project from '../models/Project.js';
 import ActivityLog from '../models/ActivityLog.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { askGroq, parseJsonResponse } from '../utils/ai.js';
 import { fail, ok } from '../utils/http.js';
 
 export const summariseProject = asyncHandler(async (req, res) => {
-  if (!req.body.projectId) return fail(res, 'projectId is required', 422);
-  const tasks = await Task.find({ projectId: req.body.projectId }).lean();
+  const { projectId, prompt } = req.body;
+  if (!projectId) return fail(res, 'projectId is required', 422);
+
+  const [project, tasks] = await Promise.all([
+    Project.findById(projectId).lean(),
+    Task.find({ projectId }).lean()
+  ]);
+
+  if (prompt) {
+    const text = await askGroq(`You are a friendly and professional project assistant for a collaboration app. 
+The current project is named: "${project?.name || 'Unknown Project'}".
+Here are all tasks for this project: ${JSON.stringify(tasks)}.
+
+Answer the following user question/greeting: "${prompt}"
+Respond in a friendly, helpful, and professional tone in markdown. Be concise and reference the project name or tasks directly if relevant.`);
+    return ok(res, { summary: text });
+  }
+
   const text = await askGroq(`You are a project assistant. Here are all tasks for this project: ${JSON.stringify(tasks)}. Give a concise markdown summary with headings for overall status, completed work, and what's remaining. Use bullet points instead of tables. Be specific and use task titles.`);
   return ok(res, { summary: text });
 });

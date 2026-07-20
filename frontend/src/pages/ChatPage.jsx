@@ -105,25 +105,25 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="flex h-screen w-full bg-[#070709] text-white">
+    <div className="flex h-screen w-full bg-[#f4f5f7] dark:bg-[#070709] text-zinc-800 dark:text-white transition-colors duration-300">
       {/* Left Sidebar: Channel List */}
-      <div className="w-64 border-r border-white/10 bg-white/[0.02] flex flex-col">
+      <div className="w-64 border-r border-zinc-200 dark:border-white/10 bg-[#f8f9fa] dark:bg-white/[0.02] flex flex-col">
         {/* Navigation Control Header */}
-        <div className="p-3 border-b border-white/10 bg-black/10">
+        <div className="p-3 border-b border-zinc-200 dark:border-white/10 bg-black/[0.02] dark:bg-black/10">
           <button
             onClick={() => navigate('/dashboard')}
-            className="flex items-center gap-2 text-xs font-medium text-zinc-400 hover:text-white transition-colors px-2 py-1.5 rounded-md hover:bg-white/5 w-full text-left"
+            className="flex items-center gap-2 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors px-2 py-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/5 w-full text-left"
           >
             <ArrowLeft size={14} />
             Back to Dashboard
           </button>
         </div>
 
-        <div className="p-4 border-b border-white/10 flex justify-between items-center">
-          <h2 className="font-bold text-lg">Team Channels</h2>
+        <div className="p-4 border-b border-zinc-200 dark:border-white/10 flex justify-between items-center bg-[#f8f9fa] dark:bg-transparent">
+          <h2 className="font-bold text-lg text-zinc-800 dark:text-white">Team Channels</h2>
           <button 
             onClick={() => setIsCreating(!isCreating)}
-            className="text-zinc-400 hover:text-white transition-colors p-1 bg-white/5 rounded-md"
+            className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors p-1 bg-black/5 dark:bg-white/5 rounded-md"
           >
             <Plus size={16} />
           </button>
@@ -166,8 +166,8 @@ const ChatPage = () => {
                   onClick={() => setActiveChannel(channel)}
                   className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm ${
                     activeChannel?._id === channel._id 
-                      ? 'bg-indigo-600/20 text-indigo-400 font-medium' 
-                      : 'text-zinc-400 hover:bg-white/5 hover:text-zinc-200'
+                      ? 'bg-indigo-600/20 text-indigo-500 dark:text-indigo-400 font-medium' 
+                      : 'text-zinc-500 dark:text-zinc-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-zinc-900 dark:hover:text-zinc-200'
                   }`}
                 >
                   <span className="text-lg opacity-50">#</span>
@@ -189,14 +189,14 @@ const ChatPage = () => {
       </div>
 
       {/* Right Main Area: The Chat Room (Message Box) */}
-      <div className="flex-1 flex flex-col bg-white/[0.01]">
+      <div className="flex-1 flex flex-col bg-[#f0f2f5] dark:bg-[#070709]">
         {activeChannel ? (
           <>
-            <div className="p-4 border-b border-white/10 flex items-center gap-2 h-[65px]">
+            <div className="p-4 border-b border-zinc-200 dark:border-white/10 flex items-center gap-2 h-[65px] bg-[#f8f9fa] dark:bg-transparent">
               <span className="text-xl text-zinc-500">#</span>
-              <h2 className="font-bold text-lg">{activeChannel.name}</h2>
+              <h2 className="font-bold text-lg text-zinc-800 dark:text-white">{activeChannel.name}</h2>
               {activeChannel.description && (
-                <span className="text-sm text-zinc-500 ml-2 border-l border-white/10 pl-2">
+                <span className="text-sm text-zinc-500 ml-2 border-l border-zinc-200 dark:border-white/10 pl-2">
                   {activeChannel.description}
                 </span>
               )}

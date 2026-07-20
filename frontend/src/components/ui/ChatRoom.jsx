@@ -159,7 +159,7 @@ const ChatRoom = ({ channelId }) => {
                   <div className={`max-w-xs md:max-w-md p-3 rounded-2xl ${
                     isMe 
                       ? 'bg-primary text-white rounded-tr-sm' 
-                      : 'surface border border-light-border dark:border-dark-border rounded-tl-sm'
+                      : 'surface border border-light-border dark:border-dark-border rounded-tl-sm text-zinc-800 dark:text-zinc-100'
                   }`}>
                     <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                   </div>
