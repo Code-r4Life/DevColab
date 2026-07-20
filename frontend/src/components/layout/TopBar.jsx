@@ -21,30 +21,30 @@ export const TopBar = ({ breadcrumbs = [] }) => {
   const normalizedCrumbs = breadcrumbs.map((crumb) => (typeof crumb === 'string' ? { label: crumb } : crumb));
 
   return (
-    <header className="surface h-14 sticky top-0 z-30 flex items-center justify-between px-6 border-b border-light-border dark:border-dark-border bg-white dark:bg-[#070709]">
+    <header className="h-14 sticky top-0 z-30 flex items-center justify-between px-6 border-b border-light-border dark:border-dark-border bg-[#f8f8fa] dark:bg-[#070709]">
       <div className="flex items-center gap-3">
         {/* Breadcrumbs */}
-        <nav className="flex items-center text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+        <nav className="flex items-center text-xs text-zinc-700 dark:text-zinc-400 font-medium">
           <button 
             type="button" 
             onClick={() => navigate('/dashboard')} 
-            className="text-zinc-500 dark:text-zinc-400 hover:text-primary transition-colors"
+            className="text-zinc-700 dark:text-zinc-400 hover:text-primary transition-colors"
           >
             DevCollab
           </button>
           {normalizedCrumbs.map((crumb, idx) => (
             <Fragment key={`${crumb.label}-${idx}`}>
-              <ChevronRight size={14} className="mx-1 text-zinc-400 dark:text-zinc-600" />
+              <ChevronRight size={14} className="mx-1 text-zinc-500 dark:text-zinc-600" />
               {crumb.to ? (
                 <button 
                   type="button" 
                   onClick={() => navigate(crumb.to)} 
-                  className="text-zinc-500 dark:text-zinc-400 hover:text-primary transition-colors"
+                  className="text-zinc-700 dark:text-zinc-400 hover:text-primary transition-colors"
                 >
                   {crumb.label}
                 </button>
               ) : (
-                <span className={cn(idx === normalizedCrumbs.length - 1 ? "text-zinc-900 dark:text-white font-semibold" : "text-zinc-500 dark:text-zinc-400 hover:text-primary cursor-pointer transition-colors")}>
+                <span className={cn(idx === normalizedCrumbs.length - 1 ? "text-black dark:text-white font-semibold" : "text-zinc-700 dark:text-zinc-400 hover:text-primary cursor-pointer transition-colors")}>
                   {crumb.label}
                 </span>
               )}

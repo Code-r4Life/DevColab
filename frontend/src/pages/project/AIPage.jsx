@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { PageShell } from "../../components/layout/PageShell";
-import { Avatar, Button } from "../../components/ui";
+import { Avatar, Button, Modal } from "../../components/ui";
 import { cn } from "../../assets/utils";
-import { Send, Zap, Code, Bug, Cpu, Eye, ShieldCheck } from "lucide-react";
+import { Send, Zap, Code, Bug, Cpu, Eye, ShieldCheck, Trash2, ArrowDown } from "lucide-react";
 import { useAuth } from "../../context/useAuth";
 import { useWorkspace } from "../../context/useWorkspace";
 import api, { unwrap } from "../../lib/api";
@@ -15,13 +15,56 @@ const AIPage = () => {
   const { projects } = useWorkspace();
   const [projectName, setProjectName] = useState('');
   const [prompt, setPrompt] = useState("");
-  const [messages, setMessages] = useState([{ role: "ai", text: "Hello! I'm your DevCollab AI Assistant. How can I help you today?" }]);
+  const [messages, setMessages] = useState(() => {
+    return [{ role: "ai", text: "Hello! I'm your DevCollab AI Assistant. How can I help you today?" }];
+  });
   const [reviewInput, setReviewInput] = useState("");
   const [language, setLanguage] = useState("javascript");
   const [review, setReview] = useState(null);
   const [reviewError, setReviewError] = useState("");
   const [sending, setSending] = useState(false);
   const [reviewing, setReviewing] = useState(false);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+
+  const messagesEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleScroll = () => {
+    if (!chatContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    // Show button if user is scrolled up by more than 150px
+    setShowScrollButton(scrollHeight - scrollTop - clientHeight > 150);
+  };
+
+  // Scroll to bottom when messages list updates
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Load chat history for the project
+  useEffect(() => {
+    if (!projectId) return;
+    const cached = localStorage.getItem(`ai_messages_${projectId}`);
+    if (cached) {
+      setMessages(JSON.parse(cached));
+    } else {
+      setMessages([{ role: "ai", text: "Hello! I'm your DevCollab AI Assistant. How can I help you today?" }]);
+    }
+  }, [projectId]);
+
+  const handleClearHistory = () => {
+    const welcome = [{ role: "ai", text: "Hello! I'm your DevCollab AI Assistant. How can I help you today?" }];
+    setMessages(welcome);
+    if (projectId) {
+      localStorage.setItem(`ai_messages_${projectId}`, JSON.stringify(welcome));
+    }
+    setClearConfirmOpen(false);
+  };
 
   const formatBreakdown = (subtasks = []) => {
     if (!Array.isArray(subtasks) || !subtasks.length) return "No subtasks were generated.";
@@ -46,14 +89,30 @@ const AIPage = () => {
   };
 
   const addAiMessage = async (label, request) => {
-    setMessages((prev) => [...prev, { role: "user", text: label }]);
+    const userMsg = { role: "user", text: label };
+    setMessages((prev) => {
+      const next = [...prev, userMsg];
+      if (projectId) localStorage.setItem(`ai_messages_${projectId}`, JSON.stringify(next));
+      return next;
+    });
+
     try {
       setSending(true);
       const data = unwrap(await request());
       const text = normalizeAssistantText(data);
-      setMessages((prev) => [...prev, { role: "ai", text }]);
+      const aiMsg = { role: "ai", text };
+      setMessages((prev) => {
+        const next = [...prev, aiMsg];
+        if (projectId) localStorage.setItem(`ai_messages_${projectId}`, JSON.stringify(next));
+        return next;
+      });
     } catch (err) {
-      setMessages((prev) => [...prev, { role: "ai", text: err.response?.data?.message || "AI request failed" }]);
+      const errMsg = { role: "ai", text: err.response?.data?.message || "AI request failed" };
+      setMessages((prev) => {
+        const next = [...prev, errMsg];
+        if (projectId) localStorage.setItem(`ai_messages_${projectId}`, JSON.stringify(next));
+        return next;
+      });
     } finally {
       setSending(false);
     }
@@ -67,7 +126,7 @@ const AIPage = () => {
     if (lower.includes("block")) return addAiMessage(input, () => api.post('/ai/blockers', { projectId }));
     if (lower.includes("standup")) return addAiMessage(input, () => api.post('/ai/standup', { projectId }));
     if (lower.includes("break")) return addAiMessage(input, () => api.post('/ai/breakdown', { feature: input }));
-    return addAiMessage(input, () => api.post('/ai/summarise', { projectId }));
+    return addAiMessage(input, () => api.post('/ai/summarise', { projectId, prompt: input }));
   };
 
   const reviewCode = async () => {
@@ -109,14 +168,48 @@ const AIPage = () => {
       <div className="h-full flex gap-6 overflow-hidden">
         <div className="flex-1 flex flex-col gap-6">
           <div className="flex-1 surface rounded-2xl flex flex-col overflow-hidden border">
-            <div className="p-4 border-b dark:border-dark-border flex items-center gap-3 bg-primary/5"><div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white"><Zap size={18} /></div><div><h2 className="font-bold">DevCollab AI</h2><p className="text-[10px] text-success font-bold uppercase">Online</p></div></div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+            <div className="p-4 border-b dark:border-dark-border flex items-center justify-between bg-primary/5">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
+                  <Zap size={18} />
+                </div>
+                <div>
+                  <h2 className="font-bold">DevCollab AI</h2>
+                  <p className="text-[10px] text-success font-bold uppercase">Online</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setClearConfirmOpen(true)}
+                className="text-red-500 hover:text-red-600 transition-colors p-1.5 hover:bg-red-500/10 rounded-lg cursor-pointer"
+                title="Clear Chat History"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+            <div 
+              ref={chatContainerRef}
+              onScroll={handleScroll}
+              className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar relative"
+            >
               {messages.map((m, i) => (
                 <div key={i} className={cn("flex gap-4 max-w-[80%]", m.role === "user" ? "ml-auto flex-row-reverse" : "")}> 
                   {m.role === "ai" ? <div className="w-8 h-8 rounded-lg bg-primary flex-shrink-0 flex items-center justify-center text-white"><Zap size={14} /></div> : <Avatar src={user?.avatar} size="xs" />}
                   <div className={cn("p-4 rounded-2xl text-sm leading-relaxed", m.role === "ai" ? "bg-white/5 border border-dark-border rounded-tl-none" : "bg-primary text-white rounded-tr-none")}>{m.role === "ai" ? <MarkdownRenderer content={m.text} compact className="rounded-none" /> : <div className="whitespace-pre-wrap text-white">{m.text}</div>}</div>
                 </div>
               ))}
+              <div ref={messagesEndRef} />
+              
+              {showScrollButton && (
+                <button
+                  type="button"
+                  onClick={scrollToBottom}
+                  className="absolute bottom-4 right-4 bg-primary text-white p-2 rounded-full shadow-lg hover:bg-primary-hover active:scale-95 transition-all cursor-pointer z-20 flex items-center justify-center border border-white/10"
+                  title="Scroll to bottom"
+                >
+                  <ArrowDown size={18} />
+                </button>
+              )}
             </div>
             <div className="p-6 border-t dark:border-dark-border space-y-4">
               <div className="flex flex-wrap gap-2 text-[10px]">{["Summarize this project", "What's blocking us?", "Generate standup", "Break down notifications feature"].map((p) => <button key={p} onClick={() => handleSend(p)} className="px-3 py-1.5 rounded-lg border border-dark-border hover:border-primary hover:text-primary font-bold uppercase tracking-widest">{p}</button>)}</div>
@@ -134,6 +227,25 @@ const AIPage = () => {
           </div>
         </div>
       </div>
+      <Modal
+        isOpen={clearConfirmOpen}
+        onClose={() => setClearConfirmOpen(false)}
+        title="Clear Chat History"
+        footer={
+          <div className="flex justify-end gap-3 mt-4">
+            <Button type="button" variant="secondary" onClick={() => setClearConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" variant="danger" onClick={handleClearHistory}>
+              Clear
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-gray-300">
+          Are you sure you want to clear the chat history for this project? This action cannot be undone.
+        </p>
+      </Modal>
     </PageShell>
   );
 };
